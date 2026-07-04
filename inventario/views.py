@@ -4,6 +4,11 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.cache import never_cache
 from functools import wraps
+
+# Imports de Django REST Framework
+from rest_framework import generics
+from .serializers import ProductSerializer
+
 from .models import (
     AppUser, Product, Warehouse, Pve, Carrier, Seller,
     Ingreso, Salida, Traslado, Reserva, Factura, Garantia
@@ -76,11 +81,8 @@ def login_view(request):
             return JsonResponse({'success': True, 'user': user_obj.data})
 
         # Normal login
-        # Primero buscamos por email (como ID principal)
         user_record = AppUser.objects.filter(id=email).first()
         if not user_record:
-            # Si no, buscamos iterando si el frontend guardó con ID distinto al email (por seguridad extra)
-            # o si buscan por username
             users = AppUser.objects.exclude(id='SYSTEM_METADATA')
             for u in users:
                 d = u.data
@@ -91,7 +93,6 @@ def login_view(request):
                             return JsonResponse({'success': True, 'user': d})
             return JsonResponse({'error': 'Credenciales inválidas'}, status=401)
 
-        # Si lo encontró por ID
         if isinstance(user_record.data, dict) and user_record.data.get('password') == password:
             request.session['active_user_email'] = user_record.id
             return JsonResponse({'success': True, 'user': user_record.data})
@@ -226,3 +227,8 @@ def sync_metadata(request):
 @require_auth
 def sync_state(request):
     return JsonResponse({'success': True, 'message': 'Endpoint deprecado. Use APIs granulares.'})
+
+# Vista basada en DRF para el modelo Product
+class ProductListCreateView(generics.ListCreateAPIView):
+    queryset = Product.objects.all()
+    serializer_class = ProductSerializer
