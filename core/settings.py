@@ -84,9 +84,10 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
+
 DATABASES = {
-    # Usamos una base de datos en memoria o temporal por defecto para evitar que el build crashee
-    'default': env.db('DATABASE_URL', default='postgresql://tym:900928tyminventario360@inventario_tym_bd:5432/tym?sslmode=disable')
+    # Usamos SQLite por defecto durante la compilación para evitar errores de red
+    'default': env.db('DATABASE_URL', default='sqlite:///' + str(BASE_DIR / 'db.sqlite3'))
 }
 
 
