@@ -33,6 +33,10 @@ DEBUG = env('DEBUG', default=False)
 
 ALLOWED_HOSTS = ['*']
 
+# Configuración agregada para permitir peticiones POST (como el login) desde Easypanel
+CSRF_TRUSTED_ORIGINS = [
+    'https://sistema-inventario-360-sistema-inventario-360.qvzazj.easypanel.host',
+]
 
 # Application definition
 
