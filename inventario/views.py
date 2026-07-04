@@ -133,9 +133,9 @@ def init_state(request):
         meta_record = AppUser.objects.filter(id='SYSTEM_METADATA').first()
         if meta_record and isinstance(meta_record.data, dict):
             for extra_key, extra_value in meta_record.data.items():
-                state[extra_key] = extra_value
+                if extra_key != 'activeUser':
+                    state[extra_key] = extra_value
         else:
-            state['activeUser'] = None
             state['backup'] = {"frequency": "Mensual", "time": "02:00", "emails": ""}
             state['backupsLog'] = []
             state['pedidosAccesorios'] = []
@@ -202,7 +202,7 @@ def api_resource(request, resource_name, resource_id=None):
 def sync_metadata(request):
     try:
         new_state = json.loads(request.body)
-        extra_keys = ['activeUser', 'backup', 'backupsLog', 'pedidosAccesorios', 'rotulos', 'simulations']
+        extra_keys = ['backup', 'backupsLog', 'pedidosAccesorios', 'rotulos', 'simulations']
         meta_data = {}
         for key in extra_keys:
             if key in new_state:

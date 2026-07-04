@@ -89,10 +89,7 @@ const State = {
   facturacion: [],
   
   save() {
-    localStorage.setItem("inv360_active_user", JSON.stringify(this.activeUser));
-    
     const metadataState = {
-      activeUser: this.activeUser,
       backup: this.backup,
       backupsLog: this.backupsLog,
       pedidosAccesorios: this.pedidosAccesorios,
