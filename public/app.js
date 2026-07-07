@@ -367,6 +367,11 @@ document.getElementById("login-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const loginInput = document.getElementById("login-email").value.trim().toLowerCase();
   const pass = document.getElementById("login-password").value;
+  
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  const originalText = submitBtn.textContent;
+  submitBtn.textContent = "Iniciando sesión...";
+  submitBtn.disabled = true;
 
   try {
     const res = await fetch('/api/auth/login', {
@@ -380,13 +385,19 @@ document.getElementById("login-form").addEventListener("submit", async (e) => {
       State.activeUser = data.user;
       document.getElementById("first-login-tip").classList.add("hidden");
       await fetchInitialState(true);
+      submitBtn.textContent = originalText;
+      submitBtn.disabled = false;
     } else {
       const errorBlock = document.getElementById("login-error");
       errorBlock.classList.remove("hidden");
       setTimeout(() => errorBlock.classList.add("hidden"), 4000);
+      submitBtn.textContent = originalText;
+      submitBtn.disabled = false;
     }
   } catch(error) {
     console.error("Error en login:", error);
+    submitBtn.textContent = originalText;
+    submitBtn.disabled = false;
   }
 });
 

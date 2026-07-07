@@ -81,7 +81,7 @@ def login_view(request):
             return JsonResponse({'success': True, 'user': user_obj.data})
 
         # Normal login
-        user_record = AppUser.objects.filter(id=email).first()
+        user_record = AppUser.objects.filter(id__iexact=email).first()
         if not user_record:
             users = AppUser.objects.exclude(id='SYSTEM_METADATA')
             for u in users:
