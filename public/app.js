@@ -3612,6 +3612,32 @@ document.getElementById("btn-export-xlsx").onclick = function() {
 // ==========================================================================
 // MÓDULO DOCUMENTOS CREADOS (HISTORIAL Y EDICIÓN/ELIMINACIÓN)
 // ==========================================================================
+let docsSortCol = 'fecha';
+let docsSortOrder = 'desc';
+
+window.toggleDocsSort = function(col) {
+  if (docsSortCol === col) {
+    docsSortOrder = docsSortOrder === 'asc' ? 'desc' : 'asc';
+  } else {
+    docsSortCol = col;
+    docsSortOrder = 'asc';
+  }
+  
+  // Update icons
+  ['folio', 'fecha', 'tipo', 'producto'].forEach(c => {
+    const iconEl = document.getElementById(`sort-icon-${c}`);
+    if (iconEl) {
+      if (c === docsSortCol) {
+        iconEl.textContent = docsSortOrder === 'asc' ? '▲' : '▼';
+      } else {
+        iconEl.textContent = '';
+      }
+    }
+  });
+
+  renderDocumentsHistory();
+};
+
 function renderDocumentsHistory() {
   const tbody = document.querySelector("#table-docs-history tbody");
   tbody.innerHTML = "";
@@ -3656,8 +3682,48 @@ function renderDocumentsHistory() {
     });
   }
 
-  // Ordenar por fecha descendente
-  allDocs.sort((a, b) => new Date(b.date) - new Date(a.date));
+  // Ordenar según configuración
+  allDocs.sort((a, b) => {
+    let valA, valB;
+    
+    if (docsSortCol === 'fecha') {
+      valA = new Date(a.date).getTime();
+      valB = new Date(b.date).getTime();
+      if (isNaN(valA)) valA = 0;
+      if (isNaN(valB)) valB = 0;
+    } else if (docsSortCol === 'folio') {
+      valA = (a.id || "").toString().toLowerCase();
+      valB = (b.id || "").toString().toLowerCase();
+    } else if (docsSortCol === 'tipo') {
+      valA = (a.docType || "").toString().toLowerCase();
+      valB = (b.docType || "").toString().toLowerCase();
+    } else if (docsSortCol === 'producto') {
+      const getProdName = (doc) => {
+        if (doc.prodName) return doc.prodName;
+        if (doc.sku) {
+          const p = State.products.find(prod => prod.sku === doc.sku);
+          if (p) return p.name;
+          return doc.sku;
+        }
+        if (doc.items && doc.items.length > 0) {
+          const item = doc.items[0];
+          if (item.name) return item.name;
+          if (item.desc) return item.desc;
+          if (item.sku) {
+            const p = State.products.find(prod => prod.sku === item.sku);
+            return p ? p.name : item.sku;
+          }
+        }
+        return "";
+      };
+      valA = getProdName(a).toString().toLowerCase();
+      valB = getProdName(b).toString().toLowerCase();
+    }
+
+    if (valA < valB) return docsSortOrder === 'asc' ? -1 : 1;
+    if (valA > valB) return docsSortOrder === 'asc' ? 1 : -1;
+    return 0;
+  });
 
   // Aplicar búsqueda por SKU, Folio, Bodega, etc.
   if (searchQ) {
@@ -4652,9 +4718,6 @@ function openReservaShipModal(index) {
         alert("Ocurrió un error al procesar la imagen de soporte.");
         return;
       }
-    } else {
-      alert("Por favor adjunte el soporte de pago.");
-      return;
     }
 
     let finalPaymentMethod = paymentMethod;

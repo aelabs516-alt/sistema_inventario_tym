@@ -1763,10 +1763,10 @@
                 <table class="table table-striped table-hover" id="table-docs-history">
                   <thead>
                     <tr>
-                      <th>Folio</th>
-                      <th>Fecha</th>
-                      <th>Tipo</th>
-                      <th>Producto</th>
+                      <th onclick="toggleDocsSort('folio')" style="cursor:pointer" title="Ordenar por Folio" class="user-select-none">Folio <span id="sort-icon-folio"></span></th>
+                      <th onclick="toggleDocsSort('fecha')" style="cursor:pointer" title="Ordenar por Fecha" class="user-select-none">Fecha <span id="sort-icon-fecha">▼</span></th>
+                      <th onclick="toggleDocsSort('tipo')" style="cursor:pointer" title="Ordenar por Tipo" class="user-select-none">Tipo <span id="sort-icon-tipo"></span></th>
+                      <th onclick="toggleDocsSort('producto')" style="cursor:pointer" title="Ordenar por Producto" class="user-select-none">Producto <span id="sort-icon-producto"></span></th>
                       <th>Detalles / Observaciones</th>
                       <th>Cant. Ítems</th>
                       <th>Valor Total / Envío</th>
