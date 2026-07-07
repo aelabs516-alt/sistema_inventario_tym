@@ -68,6 +68,22 @@ let editingUserEmail = null;
 let editingSellerName = null;
 let isSubmittingProduct = false;
 
+window.getNextFolio = function(docsArray) {
+  let maxFolio = 0;
+  for (const doc of docsArray) {
+    if (doc.id) {
+      const match = doc.id.match(/\d+$/);
+      if (match) {
+        const num = parseInt(match[0], 10);
+        if (num > maxFolio) {
+          maxFolio = num;
+        }
+      }
+    }
+  }
+  return String(maxFolio + 1).padStart(4, "0");
+};
+
 const State = {
   users: [DEFAULT_USER],
   activeUser: JSON.parse(localStorage.getItem("inv360_active_user")) || null,
@@ -1676,7 +1692,7 @@ document.getElementById("form-stock-entry").addEventListener("submit", (e) => {
   const notes = document.getElementById("entry-notes").value.trim();
 
   // Generar Folio
-  const folioNum = String(State.ingresos.length + 1).padStart(4, "0");
+  const folioNum = getNextFolio(State.ingresos);
   const id = `ING-${folioNum}`;
 
   // Guardar documento
@@ -2166,7 +2182,7 @@ document.getElementById("form-stock-exit").addEventListener("submit", async (e) 
     }
   }
 
-  const folioNum = String(State.salidas.length + 1).padStart(4, "0");
+  const folioNum = getNextFolio(State.salidas);
   const id = `SAL-${folioNum}`;
 
   State.salidas.push({ id, date, warehouse: whGlobal, pve, items: [...currentExitItems], client, carrier, carrierGuide, shippingCost, seller, channel, mastershop, facturaElectronica, ean, notes });
@@ -2387,7 +2403,7 @@ document.getElementById("form-stock-transfer").addEventListener("submit", (e) =>
     }
   } else {
     // Creación normal
-    const folioNum = String(State.traslados.length + 1).padStart(4, "0");
+    const folioNum = getNextFolio(State.traslados);
     const id = `TRA-${folioNum}`;
     State.traslados.push({ id, date, originWarehouse: origin, destWarehouse: dest, items: [...currentTransferItems] });
     alert(`Documento de Traslado ${id} creado con éxito.`);
@@ -3355,7 +3371,7 @@ document.getElementById("form-import-general-xls").addEventListener("submit", (e
 
       // Guardar documentos de ingreso creados masivamente
       Object.values(docs).forEach(doc => {
-        const folioNum = String(State.ingresos.length + 1).padStart(4, "0");
+        const folioNum = getNextFolio(State.ingresos);
         doc.id = `ING-XLS-${folioNum}`;
         State.ingresos.push(doc);
       });
@@ -3420,7 +3436,7 @@ document.getElementById("form-import-general-xls").addEventListener("submit", (e
 
       // Guardar
       Object.values(docs).forEach(doc => {
-        const folioNum = String(State.salidas.length + 1).padStart(4, "0");
+        const folioNum = getNextFolio(State.salidas);
         doc.id = `SAL-XLS-${folioNum}`;
         // Llenar EAN concatenados
         doc.ean = doc.items.map(item => {
@@ -4799,7 +4815,7 @@ function openReservaShipModal(index) {
       res.shipPayAmount = payAmount;
 
       // Crear transacción de salida (SAL) para descontar stock
-      const folioNum = String(State.salidas.length + 1).padStart(4, "0");
+      const folioNum = getNextFolio(State.salidas);
       const salidaId = `SAL-${folioNum}`;
       
       const clientStr = `Nombre: ${res.name.toUpperCase()} | Cédula: ${res.idCard} | Contacto: ${res.phone}`;
