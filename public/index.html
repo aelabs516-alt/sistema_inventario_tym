@@ -1278,6 +1278,10 @@
               <h5 class="card-title"><i data-lucide="filter"></i> Cruce de Inventarios (Selección Múltiple)</h5>
               <div class="filters-grid">
                 <div class="db-filter-group">
+                  <label class="db-filter-label"><i data-lucide="search"></i> Buscar Producto</label>
+                  <input type="text" id="stock-filter-product-name" class="form-control db-select" placeholder="Nombre del producto...">
+                </div>
+                <div class="db-filter-group">
                   <label class="db-filter-label"><i data-lucide="tag"></i> Categoría</label>
                   <select id="stock-filter-categories" multiple class="custom-select-multi db-select">
                     <option value="T&M">T&M</option>
@@ -1296,10 +1300,6 @@
                   <select id="stock-filter-products" multiple class="custom-select-multi db-select">
                     <!-- Dinámico -->
                   </select>
-                </div>
-                <div class="db-filter-group">
-                  <label class="db-filter-label"><i data-lucide="search"></i> Buscar Producto</label>
-                  <input type="text" id="stock-filter-product-name" class="form-control db-select" placeholder="Nombre del producto...">
                 </div>
                 <div class="db-filter-group" style="display: flex; flex-direction: column; gap: 10px;">
                   <div>
@@ -1368,6 +1368,10 @@
               <h5 class="card-title"><i data-lucide="filter"></i> Cruce de Inventarios (Selección Múltiple)</h5>
               <div class="filters-grid">
                 <div class="db-filter-group">
+                  <label class="db-filter-label"><i data-lucide="search"></i> Buscar Producto</label>
+                  <input type="text" id="stock-basic-filter-product-name" class="form-control db-select" placeholder="Nombre del producto...">
+                </div>
+                <div class="db-filter-group">
                   <label class="db-filter-label"><i data-lucide="tag"></i> Categoría</label>
                   <select id="stock-basic-filter-categories" multiple class="custom-select-multi db-select">
                     <option value="T&M">T&M</option>
@@ -1386,10 +1390,6 @@
                   <select id="stock-basic-filter-products" multiple class="custom-select-multi db-select">
                     <!-- Dinámico -->
                   </select>
-                </div>
-                <div class="db-filter-group">
-                  <label class="db-filter-label"><i data-lucide="search"></i> Buscar Producto</label>
-                  <input type="text" id="stock-basic-filter-product-name" class="form-control db-select" placeholder="Nombre del producto...">
                 </div>
               </div>
               <div class="filter-actions mt-3">
@@ -1754,10 +1754,10 @@
             <div class="card-body">
               <div class="search-bar-row" style="gap: 15px;">
                 <div class="form-group flex-1">
-                  <input type="text" id="search-docs-input" placeholder="Buscar por Folio, Bodega, Cliente (Nombre, Cédula, Contacto) o Observaciones...">
+                  <input type="text" id="search-docs-product" placeholder="Buscar por Nombre de Producto (Ej: Cable)">
                 </div>
                 <div class="form-group flex-1">
-                  <input type="text" id="search-docs-product" placeholder="Buscar por Nombre de Producto (Ej: Cable)">
+                  <input type="text" id="search-docs-input" placeholder="Buscar por Folio, Bodega, Cliente (Nombre, Cédula, Contacto) o Observaciones...">
                 </div>
                 <div class="form-group">
                   <select id="filter-docs-type">
