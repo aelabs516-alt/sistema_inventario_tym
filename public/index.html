@@ -1301,13 +1301,15 @@
                   <label class="db-filter-label"><i data-lucide="search"></i> Buscar Producto</label>
                   <input type="text" id="stock-filter-product-name" class="form-control db-select" placeholder="Nombre del producto...">
                 </div>
-                <div class="db-filter-group">
-                  <label class="db-filter-label"><i data-lucide="calendar"></i> Fecha Inicio</label>
-                  <input type="date" id="stock-filter-start-date" disabled>
-                </div>
-                <div class="db-filter-group">
-                  <label class="db-filter-label"><i data-lucide="calendar"></i> Fecha Fin</label>
-                  <input type="date" id="stock-filter-end-date" disabled>
+                <div class="db-filter-group" style="display: flex; flex-direction: column; gap: 10px;">
+                  <div>
+                    <label class="db-filter-label" style="margin-bottom: 4px;"><i data-lucide="calendar"></i> Fecha Inicio</label>
+                    <input type="date" id="stock-filter-start-date" disabled style="width: 100%;">
+                  </div>
+                  <div>
+                    <label class="db-filter-label" style="margin-bottom: 4px;"><i data-lucide="calendar"></i> Fecha Fin</label>
+                    <input type="date" id="stock-filter-end-date" disabled style="width: 100%;">
+                  </div>
                 </div>
               </div>
               <div class="mt-2 mb-3" style="display: flex; align-items: center; gap: 8px;">
@@ -1751,7 +1753,7 @@
             <div class="card-header"><h5>Historial de Operaciones</h5></div>
             <div class="card-body">
               <div class="search-bar-row" style="gap: 15px;">
-                <div class="form-group flex-2">
+                <div class="form-group flex-1">
                   <input type="text" id="search-docs-input" placeholder="Buscar por Folio, Bodega, Cliente (Nombre, Cédula, Contacto) o Observaciones...">
                 </div>
                 <div class="form-group flex-1">
