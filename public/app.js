@@ -2705,6 +2705,11 @@ function renderStockBasicTable() {
   if (activeStockBasicFilters.categories.length > 0) {
     productsToDisplay = productsToDisplay.filter(p => activeStockBasicFilters.categories.includes(p.category));
   }
+  if (activeStockBasicFilters.productName) {
+    const searchName = activeStockBasicFilters.productName;
+    const norm = str => str ? str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() : "";
+    productsToDisplay = productsToDisplay.filter(p => norm(p.name).includes(searchName) || norm(p.sku).includes(searchName));
+  }
 
   const isConsolidated = activeStockBasicFilters.warehouses.length === 0;
   let warehousesToList = State.warehouses;
@@ -2754,6 +2759,11 @@ document.addEventListener("DOMContentLoaded", () => {
     activeStockBasicFilters.categories = Array.from(document.getElementById("stock-basic-filter-categories").selectedOptions).map(o => o.value);
     activeStockBasicFilters.warehouses = Array.from(document.getElementById("stock-basic-filter-warehouses").selectedOptions).map(o => o.value);
     activeStockBasicFilters.products = Array.from(document.getElementById("stock-basic-filter-products").selectedOptions).map(o => o.value);
+    
+    // Add product name text search (accent and case insensitive)
+    const norm = str => str ? str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() : "";
+    activeStockBasicFilters.productName = norm(document.getElementById("stock-basic-filter-product-name").value.trim());
+    
     renderStockBasicTable();
   });
 
@@ -2817,7 +2827,10 @@ document.getElementById("btn-apply-stock-filters").onclick = function() {
   const whs = Array.from(document.getElementById("stock-filter-warehouses").selectedOptions).map(opt => opt.value);
   const prods = Array.from(document.getElementById("stock-filter-products").selectedOptions).map(opt => opt.value);
 
-  activeStockFilters = { categories: cats, warehouses: whs, products: prods };
+  const norm = str => str ? str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() : "";
+  const productNameSearch = norm(document.getElementById("stock-filter-product-name").value.trim());
+
+  activeStockFilters = { categories: cats, warehouses: whs, products: prods, productName: productNameSearch };
   renderStockProjectionsTable();
 };
 
@@ -2861,6 +2874,11 @@ function renderStockProjectionsTable() {
   }
   if (activeStockFilters.categories.length > 0) {
     productsToDisplay = productsToDisplay.filter(p => activeStockFilters.categories.includes(p.category));
+  }
+  if (activeStockFilters.productName) {
+    const searchName = activeStockFilters.productName;
+    const norm = str => str ? str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() : "";
+    productsToDisplay = productsToDisplay.filter(p => norm(p.name).includes(searchName) || norm(p.sku).includes(searchName));
   }
 
   // Determinar si mostrar vista consolidada (sin filtro de bodega) o detallada por bodega
@@ -3670,7 +3688,6 @@ function renderDocumentsHistory() {
   tbody.innerHTML = "";
 
   const typeFilter = document.getElementById("filter-docs-type").value;
-  const searchQ = document.getElementById("search-docs-input").value.toLowerCase().trim();
 
   // Consolidar todos los documentos en una sola lista
   let allDocs = [];
@@ -3753,45 +3770,62 @@ function renderDocumentsHistory() {
   });
 
   // Aplicar búsqueda por SKU, Folio, Bodega, etc.
-  if (searchQ) {
-    const searchClean = searchQ.replace(/[^a-z0-9]/gi, ""); // keep only alphanumeric for smart ID/phone/name matching
+  const norm = str => str ? str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() : "";
+  const generalSearchQ = norm(document.getElementById("search-docs-input").value.trim());
+  const productSearchQ = norm(document.getElementById("search-docs-product").value.trim());
+
+  if (generalSearchQ || productSearchQ) {
+    const searchClean = generalSearchQ.replace(/[^a-z0-9]/gi, ""); // keep only alphanumeric for smart ID/phone/name matching
     
     allDocs = allDocs.filter(doc => {
-      const matchId = (doc.id || "").toLowerCase().includes(searchQ);
-      const matchWh = (doc.warehouse || doc.originWarehouse || "").toLowerCase().includes(searchQ);
-      
-      const clientClean = (doc.client || "").toLowerCase().replace(/[^a-z0-9]/gi, "");
-      const matchClient = (doc.client || "").toLowerCase().includes(searchQ) ||
-                          (clientClean && searchClean && clientClean.includes(searchClean)) ||
-                          (doc.name || "").toLowerCase().includes(searchQ) ||
-                          (doc.name || "").toLowerCase().replace(/[^a-z0-9]/gi, "").includes(searchClean) ||
-                          (doc.idCard || "").toLowerCase().includes(searchQ) ||
-                          (doc.idCard || "").replace(/[^0-9]/g, "").includes(searchQ.replace(/[^0-9]/g, "")) ||
-                          (doc.cc || "").toLowerCase().includes(searchQ) ||
-                          (doc.cc || "").replace(/[^0-9]/g, "").includes(searchQ.replace(/[^0-9]/g, "")) ||
-                          (doc.nit || "").toLowerCase().includes(searchQ) ||
-                          (doc.nit || "").replace(/[^0-9]/g, "").includes(searchQ.replace(/[^0-9]/g, "")) ||
-                          (doc.phone || "").toLowerCase().includes(searchQ) ||
-                          (doc.phone || "").replace(/[^0-9]/g, "").includes(searchQ.replace(/[^0-9]/g, "")) ||
-                          (doc.telefono || "").toLowerCase().includes(searchQ) ||
-                          (doc.telefono || "").replace(/[^0-9]/g, "").includes(searchQ.replace(/[^0-9]/g, ""));
-                          
-      const matchObs = (doc.notes || doc.observaciones || doc.shipEan || doc.shipInvoice || doc.city || doc.address || "").toLowerCase().includes(searchQ);
-      
-      const matchSku = (doc.sku || "").toLowerCase().includes(searchQ) || 
-                       (doc.items && doc.items.some(item => item.sku && item.sku.toLowerCase().includes(searchQ)));
-      
-      const matchProduct = (doc.prodName || "").toLowerCase().includes(searchQ) ||
-                           (doc.sku && (State.products.find(p => p.sku === doc.sku)?.name || "").toLowerCase().includes(searchQ)) ||
-                           (doc.items && doc.items.some(item => {
-                             const pName = item.name || item.desc || (item.sku ? (State.products.find(p => p.sku === item.sku)?.name || "") : "");
-                             return pName.toLowerCase().includes(searchQ);
-                           }));
-                           
-      const matchSerial = (doc.serial || "").toLowerCase().includes(searchQ) || 
-                          (doc.items && doc.items.some(item => item.serials && item.serials.some(s => s.toLowerCase().includes(searchQ))));
-      
-      return matchId || matchWh || matchClient || matchObs || matchSku || matchProduct || matchSerial;
+      let matchesGeneral = true;
+      let matchesProductFilter = true;
+
+      if (generalSearchQ) {
+        const matchId = norm(doc.id).includes(generalSearchQ);
+        const matchWh = norm(doc.warehouse || doc.originWarehouse).includes(generalSearchQ);
+        
+        const clientClean = norm(doc.client).replace(/[^a-z0-9]/gi, "");
+        const matchClient = norm(doc.client).includes(generalSearchQ) ||
+                            (clientClean && searchClean && clientClean.includes(searchClean)) ||
+                            norm(doc.name).includes(generalSearchQ) ||
+                            norm(doc.name).replace(/[^a-z0-9]/gi, "").includes(searchClean) ||
+                            (doc.idCard || "").toLowerCase().includes(generalSearchQ) ||
+                            (doc.idCard || "").replace(/[^0-9]/g, "").includes(generalSearchQ.replace(/[^0-9]/g, "")) ||
+                            (doc.cc || "").toLowerCase().includes(generalSearchQ) ||
+                            (doc.cc || "").replace(/[^0-9]/g, "").includes(generalSearchQ.replace(/[^0-9]/g, "")) ||
+                            (doc.nit || "").toLowerCase().includes(generalSearchQ) ||
+                            (doc.nit || "").replace(/[^0-9]/g, "").includes(generalSearchQ.replace(/[^0-9]/g, "")) ||
+                            (doc.phone || "").toLowerCase().includes(generalSearchQ) ||
+                            (doc.phone || "").replace(/[^0-9]/g, "").includes(generalSearchQ.replace(/[^0-9]/g, "")) ||
+                            (doc.telefono || "").toLowerCase().includes(generalSearchQ) ||
+                            (doc.telefono || "").replace(/[^0-9]/g, "").includes(generalSearchQ.replace(/[^0-9]/g, ""));
+                            
+        const matchObs = norm(doc.notes || doc.observaciones || doc.shipEan || doc.shipInvoice || doc.city || doc.address).includes(generalSearchQ);
+        const matchSerial = norm(doc.serial).includes(generalSearchQ) || 
+                            (doc.items && doc.items.some(item => item.serials && item.serials.some(s => norm(s).includes(generalSearchQ))));
+        
+        matchesGeneral = matchId || matchWh || matchClient || matchObs || matchSerial;
+      }
+
+      if (productSearchQ) {
+        const matchSku = norm(doc.sku).includes(productSearchQ) || 
+                         (doc.items && doc.items.some(item => norm(item.sku).includes(productSearchQ)));
+        
+        const matchProduct = norm(doc.prodName).includes(productSearchQ) ||
+                             (doc.sku && norm(State.products.find(p => p.sku === doc.sku)?.name).includes(productSearchQ)) ||
+                             (doc.items && doc.items.some(item => {
+                               const pName = item.name || item.desc || (item.sku ? (State.products.find(p => p.sku === item.sku)?.name || "") : "");
+                               return norm(pName).includes(productSearchQ);
+                             }));
+        matchesProductFilter = matchSku || matchProduct;
+      }
+
+      // If one search box is filled, we need it to match. If both, we need BOTH to match.
+      if (generalSearchQ && productSearchQ) return matchesGeneral && matchesProductFilter;
+      if (generalSearchQ) return matchesGeneral;
+      if (productSearchQ) return matchesProductFilter;
+      return true;
     });
   }
 
@@ -3974,6 +4008,7 @@ function renderDocumentsHistory() {
 
 // Buscar en historial
 document.getElementById("search-docs-input").addEventListener("input", renderDocumentsHistory);
+document.getElementById("search-docs-product").addEventListener("input", renderDocumentsHistory);
 document.getElementById("filter-docs-type").onchange = renderDocumentsHistory;
 
 // Detalle Modal

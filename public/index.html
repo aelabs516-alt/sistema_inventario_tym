@@ -1292,10 +1292,14 @@
                   </select>
                 </div>
                 <div class="db-filter-group">
-                  <label class="db-filter-label"><i data-lucide="package"></i> Producto</label>
+                  <label class="db-filter-label"><i data-lucide="package"></i> Producto (Selección)</label>
                   <select id="stock-filter-products" multiple class="custom-select-multi db-select">
                     <!-- Dinámico -->
                   </select>
+                </div>
+                <div class="db-filter-group">
+                  <label class="db-filter-label"><i data-lucide="search"></i> Buscar Producto</label>
+                  <input type="text" id="stock-filter-product-name" class="form-control db-select" placeholder="Nombre del producto...">
                 </div>
                 <div class="db-filter-group">
                   <label class="db-filter-label"><i data-lucide="calendar"></i> Fecha Inicio</label>
@@ -1376,10 +1380,14 @@
                   </select>
                 </div>
                 <div class="db-filter-group">
-                  <label class="db-filter-label"><i data-lucide="package"></i> Producto</label>
+                  <label class="db-filter-label"><i data-lucide="package"></i> Producto (Selección)</label>
                   <select id="stock-basic-filter-products" multiple class="custom-select-multi db-select">
                     <!-- Dinámico -->
                   </select>
+                </div>
+                <div class="db-filter-group">
+                  <label class="db-filter-label"><i data-lucide="search"></i> Buscar Producto</label>
+                  <input type="text" id="stock-basic-filter-product-name" class="form-control db-select" placeholder="Nombre del producto...">
                 </div>
               </div>
               <div class="filter-actions mt-3">
@@ -1742,9 +1750,12 @@
           <div class="card">
             <div class="card-header"><h5>Historial de Operaciones</h5></div>
             <div class="card-body">
-              <div class="search-bar-row">
+              <div class="search-bar-row" style="gap: 15px;">
                 <div class="form-group flex-2">
-                  <input type="text" id="search-docs-input" placeholder="Buscar por Folio, Bodega, Cliente (Nombre, Cédula, Contacto), Producto (Nombre, SKU) o Observaciones...">
+                  <input type="text" id="search-docs-input" placeholder="Buscar por Folio, Bodega, Cliente (Nombre, Cédula, Contacto) o Observaciones...">
+                </div>
+                <div class="form-group flex-1">
+                  <input type="text" id="search-docs-product" placeholder="Buscar por Nombre de Producto (Ej: Cable)">
                 </div>
                 <div class="form-group">
                   <select id="filter-docs-type">
