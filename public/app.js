@@ -2660,9 +2660,9 @@ document.getElementById("btn-export-sim-pdf").onclick = function() {
       <tr style="border-bottom: 1px solid #eee;">
         <td style="padding: 8px;">${item.name}</td>
         <td style="padding: 8px; text-align: center;">${item.cbmPerBox.toFixed(4)}</td>
-        <td style="padding: 8px; text-align: center;">${item.qtyPerBox}</td>
-        <td style="padding: 8px; text-align: center;">${item.qty}</td>
-        <td style="padding: 8px; text-align: center;">${item.boxes}</td>
+        <td style="padding: 8px; text-align: center;">${item.boxQty}</td>
+        <td style="padding: 8px; text-align: center;">${item.qtyRequested}</td>
+        <td style="padding: 8px; text-align: center;">${item.boxesReq}</td>
         <td style="padding: 8px; text-align: right;">${item.totalCbm.toFixed(4)}</td>
       </tr>
     `;
