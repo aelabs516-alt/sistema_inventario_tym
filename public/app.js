@@ -2633,6 +2633,95 @@ document.getElementById("btn-save-sim").onclick = function() {
   alert(`Simulación ${simId} guardada con éxito.`);
 };
 
+// Botón Exportar a PDF
+document.getElementById("btn-export-sim-pdf").onclick = function() {
+  if (currentSimItems.length === 0) {
+    alert("Simulación vacía. Agregue productos antes de exportar.");
+    return;
+  }
+
+  const simName = prompt("Ingrese el nombre de la simulación para el PDF:", "Simulación de Importación");
+  if (simName === null) return; // Cancelado
+
+  const cbmStr = document.getElementById("sim-total-cbm").textContent;
+  const boxes = document.getElementById("sim-total-boxes").textContent;
+  const title = document.getElementById("sim-traffic-title").textContent;
+  const icon = document.getElementById("sim-traffic-icon").textContent;
+  const dateStr = new Date().toLocaleDateString();
+
+  // Buscar el logo de la empresa en el DOM
+  const logoImg = document.querySelector('.sidebar-logo-container img');
+  const logoSrc = logoImg ? logoImg.src : '';
+
+  // Generar filas de la tabla
+  let tableRows = '';
+  currentSimItems.forEach(item => {
+    tableRows += `
+      <tr style="border-bottom: 1px solid #eee;">
+        <td style="padding: 8px;">${item.name}</td>
+        <td style="padding: 8px; text-align: center;">${item.cbmPerBox.toFixed(4)}</td>
+        <td style="padding: 8px; text-align: center;">${item.qtyPerBox}</td>
+        <td style="padding: 8px; text-align: center;">${item.qty}</td>
+        <td style="padding: 8px; text-align: center;">${item.boxes}</td>
+        <td style="padding: 8px; text-align: right;">${item.totalCbm.toFixed(4)}</td>
+      </tr>
+    `;
+  });
+
+  const pdfContainer = document.createElement("div");
+  pdfContainer.style.padding = "30px";
+  pdfContainer.style.fontFamily = "'Poppins', sans-serif";
+  pdfContainer.style.color = "#333";
+  pdfContainer.innerHTML = `
+    <div style="text-align: center; margin-bottom: 30px;">
+      ${logoSrc ? `<img src="${logoSrc}" alt="Logo" style="max-height: 80px; margin-bottom: 15px;">` : ''}
+      <h2 style="margin: 0; color: #2c3e50;">${simName}</h2>
+      <p style="margin: 5px 0 0 0; color: #7f8c8d;">Fecha: ${dateStr}</p>
+    </div>
+    
+    <div style="margin-bottom: 30px; display: flex; justify-content: space-between; background: #f8f9fa; padding: 15px; border-radius: 8px;">
+      <div>
+        <strong>Volumen Consolidado:</strong> <span style="color: #0d6efd; font-weight: 600;">${cbmStr}</span><br>
+        <strong>Cajas Totales:</strong> <span style="font-weight: 600;">${boxes}</span>
+      </div>
+      <div style="text-align: right;">
+        <strong>Recomendación Logística:</strong><br>
+        <span style="font-size: 1.2em;">${icon} ${title}</span>
+      </div>
+    </div>
+
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+      <thead>
+        <tr style="background-color: #e9ecef; border-bottom: 2px solid #dee2e6;">
+          <th style="padding: 10px; text-align: left;">Producto</th>
+          <th style="padding: 10px; text-align: center;">CBM/Caja</th>
+          <th style="padding: 10px; text-align: center;">Unids/Caja</th>
+          <th style="padding: 10px; text-align: center;">Pedidas</th>
+          <th style="padding: 10px; text-align: center;">Cajas</th>
+          <th style="padding: 10px; text-align: right;">CBM Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${tableRows}
+      </tbody>
+    </table>
+    
+    <div style="margin-top: 50px; text-align: center; font-size: 10px; color: #aaa;">
+      <p>Documento generado automáticamente por Inventario 360°</p>
+    </div>
+  `;
+
+  const opt = {
+    margin:       10,
+    filename:     `Simulacion_${simName.replace(/\s+/g, '_')}_${new Date().getTime()}.pdf`,
+    image:        { type: 'jpeg', quality: 0.98 },
+    html2canvas:  { scale: 2, useCORS: true },
+    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  };
+
+  html2pdf().set(opt).from(pdfContainer).save();
+};
+
 function renderSavedSimulationsList() {
   const ul = document.getElementById("list-saved-simulations");
   ul.innerHTML = "";
