@@ -2674,7 +2674,7 @@ document.getElementById("btn-export-sim-pdf").onclick = function() {
   pdfContainer.style.color = "#333";
   pdfContainer.innerHTML = `
     <div style="text-align: center; margin-bottom: 30px;">
-      ${logoSrc ? `<img src="${logoSrc}" alt="Logo" style="max-height: 80px; margin-bottom: 15px;">` : ''}
+      ${logoSrc ? `<img src="${logoSrc}" alt="Logo" style="max-height: 160px; margin-bottom: 15px;">` : ''}
       <h2 style="margin: 0; color: #2c3e50;">${simName}</h2>
       <p style="margin: 5px 0 0 0; color: #7f8c8d;">Fecha: ${dateStr}</p>
     </div>
