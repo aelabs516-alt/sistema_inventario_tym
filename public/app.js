@@ -7036,41 +7036,7 @@ const GARANTIA_NOTA_TEXT = `*1 AÑO DE GARANTÍA POR DEFECTOS DE FÁBRICA
 
 *** Todo costo de transporte, fletes y envíos derivados de la prestación de servicios de garantía o mantenimiento preventivo/correctivo correrá por cuenta exclusiva del cliente. La empresa no asumirá costos de logística ni traslados bajo ninguna circunstancia.`;
 
-const COLOMBIA_GEODATA = {
-  "Antioquia": ["Medellín", "Bello", "Itagüí", "Envigado", "Rionegro", "Apartadó", "Turbo", "Caucasia", "Marinilla", "Sabaneta"],
-  "Bogotá D.C.": ["Bogotá"],
-  "Valle del Cauca": ["Cali", "Buenaventura", "Palmira", "Tuluá", "Yumbo", "Cartago", "Jamundí", "Buga"],
-  "Atlántico": ["Barranquilla", "Soledad", "Malambo", "Sabanagrande", "Puerto Colombia"],
-  "Bolívar": ["Cartagena", "Magangué", "Turbaco", "El Carmen de Bolívar", "Arjona"],
-  "Cundinamarca": ["Soacha", "Chía", "Zipaquirá", "Facatativá", "Fusagasugá", "Madrid", "Mosquera"],
-  "Santander": ["Bucaramanga", "Floridablanca", "Girón", "Piedecuesta", "Barrancabermeja", "San Gil"],
-  "Norte de Santander": ["Cúcuta", "Ocaña", "Villa del Rosario", "Los Patios", "Pamplona"],
-  "Tolima": ["Ibagué", "Espinal", "Melgar", "Chaparral", "Honda"],
-  "Boyacá": ["Tunja", "Duitama", "Sogamoso", "Chiquinquirá", "Paipa"],
-  "Magdalena": ["Santa Marta", "Ciénaga", "Fundación", "El Banco"],
-  "Caldas": ["Manizales", "La Dorada", "Chinchiná", "Villamaría", "Riosucio"],
-  "Risaralda": ["Pereira", "Dosquebradas", "Santa Rosa de Cabal", "La Virginia"],
-  "Quindío": ["Armenia", "Calarcá", "Quimbaya", "Montenegro", "La Tebaida"],
-  "Huila": ["Neiva", "Pitalito", "Garzón", "La Plata"],
-  "Meta": ["Villavicencio", "Acacías", "Granada", "Puerto López"],
-  "Cesar": ["Valledupar", "Aguachica", "Agustín Codazzi", "Bosconia"],
-  "Córdoba": ["Montería", "Lorica", "Cereté", "Tierralta", "Sahagún"],
-  "Sucre": ["Sincelejo", "Corozal", "San Marcos", "Tolú"],
-  "Nariño": ["Pasto", "Ipiales", "Tumaco", "Túquerres"],
-  "Cauca": ["Popayán", "Santander de Quilichao", "Puerto Tejada", "El Tambo"],
-  "La Guajira": ["Riohacha", "Maicao", "Uribia", "San Juan del Cesar"],
-  "Casanare": ["Yopal", "Aguazul", "Paz de Ariporo"],
-  "Caquetá": ["Florencia", "San Vicente del Caguán", "Puerto Rico"],
-  "Putumayo": ["Mocoa", "Puerto Asís", "Orito", "Valle del Guamuez"],
-  "Chocó": ["Quibdó", "Istmina", "Tadó", "Condoto"],
-  "Arauca": ["Arauca", "Tame", "Saravena", "Arauquita"],
-  "Guaviare": ["San José del Guaviare", "El Retorno"],
-  "San Andrés y Providencia": ["San Andrés", "Providencia"],
-  "Amazonas": ["Leticia", "Puerto Nariño"],
-  "Vichada": ["Puerto Carreño", "La Primavera", "Santa Rosalía", "Cumaribo"],
-  "Vaupés": ["Mitú", "Caruru", "Taraira"],
-  "Guainía": ["Inírida"]
-};
+
 
 function formatFacturacionNumInput(input) {
   let val = input.value.replace(/\D/g, "");

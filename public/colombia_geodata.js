@@ -1,4 +1,4 @@
-const COLOMBIA_DATA = {
+const COLOMBIA_GEODATA = {
   "Amazonas": [
     "Leticia",
     "Puerto Nariño"
