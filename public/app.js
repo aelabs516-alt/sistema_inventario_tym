@@ -7576,6 +7576,7 @@ function initInfoProductosModule() {
   const categorySelect = document.getElementById("info-prod-category");
   const productSelect = document.getElementById("info-prod-select");
   const saveBtn = document.getElementById("btn-save-info-productos");
+  const clearBtn = document.getElementById("btn-clear-info-prod-filters");
 
   function populateFilters() {
     let prodOptions = "";
@@ -7645,6 +7646,18 @@ function initInfoProductosModule() {
   searchInput.addEventListener("input", renderTable);
   categorySelect.addEventListener("change", renderTable);
   productSelect.addEventListener("change", renderTable);
+
+  if (clearBtn) {
+    clearBtn.addEventListener("click", function() {
+      searchInput.value = "";
+      
+      // Limpiar multiselects deseleccionando todas las opciones
+      Array.from(categorySelect.options).forEach(o => o.selected = false);
+      Array.from(productSelect.options).forEach(o => o.selected = false);
+      
+      renderTable();
+    });
+  }
 
   saveBtn.addEventListener("click", function() {
     const priceInputs = document.querySelectorAll(".info-prod-price-input");
