@@ -7579,8 +7579,9 @@ function initInfoProductosModule() {
 
   function populateFilters() {
     let prodOptions = "";
-    State.products.forEach(p => {
-      prodOptions += `<option value="${p.id}">${p.sku} - ${p.name}</option>`;
+    const sortedProds = [...State.products].sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
+    sortedProds.forEach(p => {
+      prodOptions += `<option value="${p.sku}">${p.name}</option>`;
     });
     productSelect.innerHTML = prodOptions;
   }
@@ -7593,11 +7594,12 @@ function initInfoProductosModule() {
     const selCats = getSelected(categorySelect);
     const selProds = getSelected(productSelect);
 
-    let filtered = State.products.filter(p => {
+    const sortedProds = [...State.products].sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
+    let filtered = sortedProds.filter(p => {
       const pName = p.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
       if (searchStr && !pName.includes(searchStr)) return false;
       if (selCats.length > 0 && !selCats.includes(p.category)) return false;
-      if (selProds.length > 0 && !selProds.includes(p.id)) return false;
+      if (selProds.length > 0 && !selProds.includes(p.sku)) return false;
       return true;
     });
 
@@ -7612,14 +7614,14 @@ function initInfoProductosModule() {
         <td style="vertical-align: middle;">${p.category}</td>
         <td>
           <input type="text" class="form-control form-control-sm info-prod-price-input" 
-            data-id="${p.id}" value="${priceStr}" placeholder="Ej. 150.000" style="text-align: right;">
+            data-sku="${p.sku}" value="${priceStr}" placeholder="Ej. 150.000" style="text-align: right;">
         </td>
         <td>
           <input type="number" class="form-control form-control-sm info-prod-warranty-input" 
-            data-id="${p.id}" value="${wVal}" placeholder="Ej. 12" min="0">
+            data-sku="${p.sku}" value="${wVal}" placeholder="Ej. 12" min="0">
         </td>
         <td>
-          <select class="form-control form-control-sm info-prod-unit-select" data-id="${p.id}">
+          <select class="form-control form-control-sm info-prod-unit-select" data-sku="${p.sku}">
             <option value="Meses" ${wUnit === 'Meses' ? 'selected' : ''}>Meses</option>
             <option value="Años" ${wUnit === 'Años' ? 'selected' : ''}>Años</option>
           </select>
@@ -7650,24 +7652,24 @@ function initInfoProductosModule() {
     const unitSelects = document.querySelectorAll(".info-prod-unit-select");
 
     priceInputs.forEach(input => {
-      const pid = input.getAttribute("data-id");
-      const p = State.products.find(x => x.id === pid);
+      const psku = input.getAttribute("data-sku");
+      const p = State.products.find(x => x.sku === psku);
       if(p) {
         p.price = input.value.replace(/\D/g, "");
       }
     });
 
     warrantyInputs.forEach(input => {
-      const pid = input.getAttribute("data-id");
-      const p = State.products.find(x => x.id === pid);
+      const psku = input.getAttribute("data-sku");
+      const p = State.products.find(x => x.sku === psku);
       if(p) {
         p.warrantyValue = input.value;
       }
     });
 
     unitSelects.forEach(select => {
-      const pid = select.getAttribute("data-id");
-      const p = State.products.find(x => x.id === pid);
+      const psku = select.getAttribute("data-sku");
+      const p = State.products.find(x => x.sku === psku);
       if(p) {
         p.warrantyUnit = select.value;
       }
