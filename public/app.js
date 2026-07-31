@@ -613,6 +613,7 @@ function updateSummaryWidget() {
 
 // --- MODULO: CREACIÓN ---
 function initModules() {
+  initInfoProductosModule();
   // Tabs internas Creación
   const tabs = document.querySelectorAll("#module-creacion .tab-btn");
   tabs.forEach(tab => {
@@ -7566,3 +7567,121 @@ if (recoveryForm) {
     }
   };
 }
+
+// --- MODULO: INFORMACIÓN PRODUCTOS ---
+function initInfoProductosModule() {
+  const tableBody = document.querySelector("#table-info-productos tbody");
+  if (!tableBody) return; // Prevent errors if DOM is not ready
+  const searchInput = document.getElementById("info-prod-search");
+  const categorySelect = document.getElementById("info-prod-category");
+  const productSelect = document.getElementById("info-prod-select");
+  const saveBtn = document.getElementById("btn-save-info-productos");
+
+  function populateFilters() {
+    let prodOptions = "";
+    State.products.forEach(p => {
+      prodOptions += `<option value="${p.id}">${p.sku} - ${p.name}</option>`;
+    });
+    productSelect.innerHTML = prodOptions;
+  }
+
+  function renderTable() {
+    tableBody.innerHTML = "";
+    const searchStr = (searchInput.value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    
+    const getSelected = (select) => Array.from(select.selectedOptions).map(o => o.value);
+    const selCats = getSelected(categorySelect);
+    const selProds = getSelected(productSelect);
+
+    let filtered = State.products.filter(p => {
+      const pName = p.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+      if (searchStr && !pName.includes(searchStr)) return false;
+      if (selCats.length > 0 && !selCats.includes(p.category)) return false;
+      if (selProds.length > 0 && !selProds.includes(p.id)) return false;
+      return true;
+    });
+
+    filtered.forEach(p => {
+      const priceStr = p.price ? parseInt(p.price, 10).toLocaleString("es-CO") : "";
+      const wVal = p.warrantyValue || "";
+      const wUnit = p.warrantyUnit || "Meses";
+      
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td style="vertical-align: middle;">${p.name}</td>
+        <td style="vertical-align: middle;">${p.category}</td>
+        <td>
+          <input type="text" class="form-control form-control-sm info-prod-price-input" 
+            data-id="${p.id}" value="${priceStr}" placeholder="Ej. 150.000" style="text-align: right;">
+        </td>
+        <td>
+          <input type="number" class="form-control form-control-sm info-prod-warranty-input" 
+            data-id="${p.id}" value="${wVal}" placeholder="Ej. 12" min="0">
+        </td>
+        <td>
+          <select class="form-control form-control-sm info-prod-unit-select" data-id="${p.id}">
+            <option value="Meses" ${wUnit === 'Meses' ? 'selected' : ''}>Meses</option>
+            <option value="Años" ${wUnit === 'Años' ? 'selected' : ''}>Años</option>
+          </select>
+        </td>
+      `;
+      tableBody.appendChild(tr);
+    });
+
+    document.querySelectorAll(".info-prod-price-input").forEach(input => {
+      input.addEventListener("input", function() {
+        let val = this.value.replace(/\D/g, "");
+        if (val !== "") {
+          this.value = parseInt(val, 10).toLocaleString("es-CO");
+        } else {
+          this.value = "";
+        }
+      });
+    });
+  }
+
+  searchInput.addEventListener("input", renderTable);
+  categorySelect.addEventListener("change", renderTable);
+  productSelect.addEventListener("change", renderTable);
+
+  saveBtn.addEventListener("click", function() {
+    const priceInputs = document.querySelectorAll(".info-prod-price-input");
+    const warrantyInputs = document.querySelectorAll(".info-prod-warranty-input");
+    const unitSelects = document.querySelectorAll(".info-prod-unit-select");
+
+    priceInputs.forEach(input => {
+      const pid = input.getAttribute("data-id");
+      const p = State.products.find(x => x.id === pid);
+      if(p) {
+        p.price = input.value.replace(/\D/g, "");
+      }
+    });
+
+    warrantyInputs.forEach(input => {
+      const pid = input.getAttribute("data-id");
+      const p = State.products.find(x => x.id === pid);
+      if(p) {
+        p.warrantyValue = input.value;
+      }
+    });
+
+    unitSelects.forEach(select => {
+      const pid = select.getAttribute("data-id");
+      const p = State.products.find(x => x.id === pid);
+      if(p) {
+        p.warrantyUnit = select.value;
+      }
+    });
+
+    State.save();
+    alert("Información de productos guardada correctamente.");
+  });
+
+  const navBtn = document.querySelector(".sidebar-nav .nav-item[data-target='module-info-productos']");
+  if(navBtn) {
+    navBtn.addEventListener("click", function() {
+      populateFilters();
+      renderTable();
+    });
+  }
+}
