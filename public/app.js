@@ -2817,15 +2817,40 @@ function renderStockBasicTable() {
   }
 
   productsToDisplay.forEach(p => {
+    let serialsTitle = "";
+    if (p.category === "ME") {
+      let serialsList = [];
+      warehousesToList.forEach(w => {
+        const avail = getAvailableSerials(p.sku, w);
+        if (avail.length > 0) {
+          if (isConsolidated && warehousesToList.length > 1) {
+             serialsList.push(`[${w}] ` + avail.join(", "));
+          } else {
+             serialsList.push(avail.join(", "));
+          }
+        }
+      });
+      if (serialsList.length > 0) {
+        serialsTitle = ` title="Seriales:\n${serialsList.join('\n')}" style="cursor: help;"`;
+      } else {
+        serialsTitle = ` title="Sin seriales disponibles" style="cursor: help;"`;
+      }
+    }
+
     let htmlStock = "";
     if (isConsolidated) {
       const totalStock = State.warehouses.reduce((sum, w) => sum + (stockData[p.sku]?.[w] || 0), 0);
-      htmlStock = `<span class="badge ${totalStock > 0 ? 'badge-primary' : 'badge-danger'} font-md">${totalStock}</span>`;
+      htmlStock = `<span class="badge ${totalStock > 0 ? 'badge-primary' : 'badge-danger'} font-md" ${serialsTitle}>${totalStock}</span>`;
     } else {
       let lines = [];
       warehousesToList.forEach(w => {
         const whStock = (stockData[p.sku] && stockData[p.sku][w]) ? stockData[p.sku][w] : 0;
-        lines.push(`${w}: <strong class="${whStock > 0 ? 'text-teal' : 'text-danger'}">${whStock}</strong>`);
+        let wSerials = "";
+        if (p.category === "ME") {
+           const avail = getAvailableSerials(p.sku, w);
+           wSerials = avail.length > 0 ? ` title="Seriales: ${avail.join(', ')}" style="cursor: help;"` : ` title="Sin seriales disponibles" style="cursor: help;"`;
+        }
+        lines.push(`${w}: <strong class="${whStock > 0 ? 'text-teal' : 'text-danger'}" ${wSerials}>${whStock}</strong>`);
       });
       htmlStock = lines.join("<br>");
     }
@@ -3053,6 +3078,27 @@ function renderStockProjectionsTable() {
       ? `<img src="${p.photo}" class="table-img-thumb" style="width: 35px; height: 35px; object-fit: cover; border-radius: 4px;">`
       : `<span class="text-muted font-sm">-</span>`;
 
+    let serialsTitle = "";
+    if (p.category === "ME") {
+      let serialsList = [];
+      const warehousesToCheck = salesWarehouses || State.warehouses;
+      warehousesToCheck.forEach(w => {
+        const avail = getAvailableSerials(p.sku, w);
+        if (avail.length > 0) {
+          if (!salesWarehouses && warehousesToCheck.length > 1) {
+             serialsList.push(`[${w}] ` + avail.join(", "));
+          } else {
+             serialsList.push(avail.join(", "));
+          }
+        }
+      });
+      if (serialsList.length > 0) {
+        serialsTitle = ` title="Seriales:\n${serialsList.join('\n')}" style="cursor: help;"`;
+      } else {
+        serialsTitle = ` title="Sin seriales disponibles" style="cursor: help;"`;
+      }
+    }
+
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${photoImg}</td>
@@ -3062,7 +3108,7 @@ function renderStockProjectionsTable() {
       </td>
       <td><span class="badge badge-teal">${p.category}</span></td>
       <td>${warehouseLabel}</td>
-      <td class="text-bold">${stockQty.toLocaleString()}</td>
+      <td class="text-bold" ${serialsTitle}>${stockQty.toLocaleString()}</td>
       <td class="text-bold">${totalUnitsSold.toLocaleString()} uds</td>
       <td>${avgDailySales.toFixed(2)} uds/día</td>
       <td>${stockOutText}</td>
