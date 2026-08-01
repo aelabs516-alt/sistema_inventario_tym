@@ -6336,10 +6336,11 @@ function initRotulosModule() {
 
   const prodSelect = document.getElementById("rotulo-me-producto");
   prodSelect.innerHTML = '<option value="">Seleccione un producto ME / Accesorios ME</option>';
-  State.products.filter(p => p.category === "ME" || p.category === "Accesorios ME").forEach(p => {
+  const sortedMeProducts = State.products.filter(p => p.category === "ME" || p.category === "Accesorios ME").sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
+  sortedMeProducts.forEach(p => {
     const opt = document.createElement("option");
     opt.value = p.sku;
-    opt.textContent = `${p.sku} - ${p.name}`;
+    opt.textContent = p.name;
     prodSelect.appendChild(opt);
   });
   prodSelect.onchange = function() {
@@ -7170,7 +7171,8 @@ function renderFacturacionItems() {
   let subtotal = 0;
   let totalDcto = 0;
 
-  const productOptions = State.products.map(p => `<option value="${p.sku} - ${p.name}">${p.sku} - ${p.name}</option>`).join("");
+  const sortedProducts = [...State.products].sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
+  const productOptions = sortedProducts.map(p => `<option value="${p.name}">${p.name}</option>`).join("");
 
   facturacionItems.forEach((item, index) => {
     const itemTotal = item.qty * (item.unitPrice - item.discount);
