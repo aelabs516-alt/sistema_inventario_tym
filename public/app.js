@@ -3686,6 +3686,10 @@ function getFilteredExportData(type) {
           "SKU": item.sku,
           "Producto": item.name,
           "Cantidad": item.qty,
+          "Valor Venta": "",
+          "Punto de Venta": "",
+          "Cliente": "",
+          "Vendedor": "",
           "Detalle / Observaciones": doc.notes
         });
       });
