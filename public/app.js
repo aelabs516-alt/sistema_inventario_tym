@@ -7267,7 +7267,7 @@ function initFacturacionModule() {
         return;
       }
       
-      const norm = str => (str !== null && str !== undefined) ? String(str).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() : "";
+      const norm = str => (str !== null && str !== undefined) ? String(str).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[\s.,-]/g, "").toLowerCase() : "";
       const query = norm(q);
       
       const matches = State.facturacion.filter(f => {
