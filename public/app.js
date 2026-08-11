@@ -4773,17 +4773,13 @@ function renderReservasTable() {
     btn.onclick = function() {
       const idx = parseInt(this.getAttribute("data-idx"));
       const res = State.reservas[idx];
-      const val = prompt(`Abono actual: $${res.amount ? parseInt(res.amount, 10).toLocaleString('es-CO') : 0}\n\nIngrese el valor del nuevo abono o cuota a sumar:`);
-      if (val !== null && val.trim() !== "") {
-        const numVal = parseInt(val.replace(/\D/g, ""), 10);
-        if (!isNaN(numVal) && numVal > 0) {
-          res.amount = (parseInt(res.amount, 10) || 0) + numVal;
-          State.save();
-          renderReservasTable();
-        } else {
-          alert("Valor de abono no válido.");
-        }
-      }
+      
+      document.getElementById("abonar-reserva-idx").value = idx;
+      document.getElementById("abonar-reserva-actual").value = `$ ${res.amount ? parseInt(res.amount, 10).toLocaleString('es-CO') : 0}`;
+      document.getElementById("abonar-reserva-amount").value = "";
+      document.getElementById("abonar-reserva-method").value = "";
+      
+      document.getElementById("modal-abonar-reserva").classList.remove("hidden");
     };
   });
 
@@ -4884,6 +4880,50 @@ function openReservaShipModal(index) {
 (function registerReservasEvents() {
   attachPriceInputFormat(document.getElementById("reserva-amount"));
   attachPriceInputFormat(document.getElementById("reserva-ship-pay-amount"));
+
+  // Modal Abonar Reserva Logic
+  const abonarReservaBtnClose = document.getElementById("btn-close-abonar-reserva");
+  if (abonarReservaBtnClose) {
+    abonarReservaBtnClose.addEventListener("click", () => {
+      document.getElementById("modal-abonar-reserva").classList.add("hidden");
+    });
+  }
+
+  const abonarAmountInput = document.getElementById("abonar-reserva-amount");
+  if (abonarAmountInput) {
+    attachPriceInputFormat(abonarAmountInput);
+  }
+
+  const abonarForm = document.getElementById("form-abonar-reserva");
+  if (abonarForm) {
+    abonarForm.addEventListener("submit", function(e) {
+      e.preventDefault();
+      const idx = parseInt(document.getElementById("abonar-reserva-idx").value);
+      const amountStr = document.getElementById("abonar-reserva-amount").value.replace(/\D/g, "");
+      const method = document.getElementById("abonar-reserva-method").value;
+      const res = State.reservas[idx];
+      
+      if (res && amountStr) {
+        const amount = parseInt(amountStr, 10);
+        if (amount > 0) {
+          res.amount = (parseInt(res.amount, 10) || 0) + amount;
+          
+          if (method) {
+            if (!res.paymentMethod) {
+              res.paymentMethod = method;
+            } else if (!res.paymentMethod.includes(method)) {
+              res.paymentMethod += " / " + method;
+            }
+          }
+          
+          State.save();
+          renderReservasTable();
+          document.getElementById("modal-abonar-reserva").classList.add("hidden");
+          showToast("Abono registrado correctamente", "success");
+        }
+      }
+    });
+  }
 
   // Submit crear reserva
   document.getElementById("form-create-reserva").addEventListener("submit", async (e) => {
