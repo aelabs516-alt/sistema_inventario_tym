@@ -1970,7 +1970,49 @@ document.getElementById("exit-product-select").onchange = function() {
 document.getElementById("exit-warehouse-global").onchange = function() {
   document.getElementById("exit-product-select").onchange();
   updateExitPveOptions();
+  document.getElementById("exit-pve").dispatchEvent(new Event("change"));
 };
+
+// Al cambiar Punto de Venta
+document.getElementById("exit-pve").addEventListener("change", function() {
+  const pve = (this.value || "").trim().toLowerCase();
+  const carrierSelect = document.getElementById("exit-carrier");
+  const sellerSelect = document.getElementById("exit-seller");
+  const channelSelect = document.getElementById("exit-channel");
+
+  function setSelectOrAdd(select, val) {
+    if (!select) return;
+    let found = false;
+    for (let i = 0; i < select.options.length; i++) {
+      if (select.options[i].value.toLowerCase() === val.toLowerCase()) {
+        select.value = select.options[i].value;
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      const opt = document.createElement("option");
+      opt.value = val;
+      opt.textContent = val;
+      select.appendChild(opt);
+      select.value = val;
+    }
+    select.dispatchEvent(new Event("change"));
+  }
+
+  if (pve === "mercado libre despacho") {
+    setSelectOrAdd(carrierSelect, "Mercado Libre Despacho");
+    setSelectOrAdd(sellerSelect, "Mercado libre Despacho");
+    setSelectOrAdd(channelSelect, "Mercado Libre");
+  } else if (pve === "mercado libre flex") {
+    setSelectOrAdd(carrierSelect, "Mercado Libre flex");
+    setSelectOrAdd(sellerSelect, "Mercado libre flex");
+    setSelectOrAdd(channelSelect, "Mercado Libre");
+  } else if (pve === "falabella" || pve === "falablle") {
+    setSelectOrAdd(sellerSelect, "Falabella");
+    setSelectOrAdd(channelSelect, "Falabella");
+  }
+});
 
 // Transportadora — mostrar campo libre si es "Otra"
 document.getElementById("exit-carrier").onchange = function() {
