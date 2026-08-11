@@ -2008,6 +2008,10 @@ document.getElementById("exit-pve").addEventListener("change", function() {
     setSelectOrAdd(carrierSelect, "Mercado Libre flex");
     setSelectOrAdd(sellerSelect, "Mercado libre flex");
     setSelectOrAdd(channelSelect, "Mercado Libre");
+  } else if (pve === "mercado libre full") {
+    setSelectOrAdd(carrierSelect, "Mercado Libre Full");
+    setSelectOrAdd(sellerSelect, "Mercado libre Full");
+    setSelectOrAdd(channelSelect, "Mercado Libre");
   } else if (pve === "falabella" || pve === "falablle") {
     setSelectOrAdd(sellerSelect, "Falabella");
     setSelectOrAdd(channelSelect, "Falabella");
