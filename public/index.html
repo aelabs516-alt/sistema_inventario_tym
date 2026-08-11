@@ -1513,6 +1513,14 @@
                     <button type="button" class="btn btn-secondary btn-doc-type" data-type="Factura De Venta">Factura</button>
                     <h4 id="facturacion-doc-title" style="margin-left: auto; color: var(--primary);">Cotización No. <span id="facturacion-consecutivo">0001</span></h4>
                   </div>
+                  <hr style="margin: 15px 0; border-color: #e2e8f0;">
+                  <div class="form-group" style="margin-bottom: 0; position: relative;">
+                    <div class="input-icon-wrapper">
+                      <i data-lucide="search"></i>
+                      <input type="text" id="facturacion-search-history" placeholder="Buscar factura anterior por Nombre del cliente o Documento (NIT/CC)..." class="form-control">
+                    </div>
+                    <div id="facturacion-search-results" class="search-results-dropdown hidden" style="position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #cbd5e1; border-radius: 4px; max-height: 250px; overflow-y: auto; z-index: 1000; box-shadow: 0 4px 10px rgba(0,0,0,0.1);"></div>
+                  </div>
                 </div>
               </div>
 

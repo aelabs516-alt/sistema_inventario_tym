@@ -4376,7 +4376,6 @@ function openDocumentDetailModal(id, type) {
       tempContainer.style.height = "1056px";
       tempContainer.style.background = "white";
       tempContainer.style.boxSizing = "border-box";
-      tempContainer.style.position = "relative";
       
       const clone = printElement.cloneNode(true);
       clone.style.width = "100%";
@@ -7281,10 +7280,118 @@ function initFacturacionModule() {
     });
   }
   
+  // Buscador de Facturas Anteriores
+  const searchInput = document.getElementById("facturacion-search-history");
+  const searchResults = document.getElementById("facturacion-search-results");
+
+  if (searchInput && searchResults) {
+    searchInput.addEventListener("input", function() {
+      const q = this.value.trim().toLowerCase();
+      if (!q) {
+        searchResults.classList.add("hidden");
+        return;
+      }
+      
+      const norm = str => str ? str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() : "";
+      const query = norm(q);
+      
+      const matches = State.facturacion.filter(f => {
+        return norm(f.client).includes(query) || norm(f.nit).includes(query) || norm(f.id).includes(query);
+      }).slice(0, 10);
+      
+      if (matches.length > 0) {
+        searchResults.innerHTML = matches.map(f => `
+          <div class="search-result-item" style="padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; display: flex; flex-direction: column;" onclick="loadFacturaIntoForm('${f.id}')">
+            <span style="font-weight: bold; color: #0f766e;">${f.docType} ${f.id}</span>
+            <span style="font-size: 12px; color: #555;"><i data-lucide="user" style="width: 12px; height: 12px;"></i> ${f.client} | CC/NIT: ${f.nit}</span>
+            <span style="font-size: 11px; color: #888;">${f.date} - Total: $${parseInt(f.total || 0).toLocaleString('es-CO')}</span>
+          </div>
+        `).join("");
+        searchResults.classList.remove("hidden");
+        lucide.createIcons();
+      } else {
+        searchResults.innerHTML = `<div style="padding: 10px; color: #999; font-size: 12px; text-align: center;">No se encontraron facturas.</div>`;
+        searchResults.classList.remove("hidden");
+      }
+    });
+
+    document.addEventListener("click", function(e) {
+      if (searchInput && searchResults && !searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+        searchResults.classList.add("hidden");
+      }
+    });
+  }
+  
   updateFacturacionHeader();
   renderFacturacionItems();
   updatePrintTemplate();
 }
+
+window.loadFacturaIntoForm = function(id) {
+  const f = State.facturacion.find(d => d.id === id);
+  if (!f) return;
+  
+  // Cambiar tipo de documento si es diferente (pero manteniendo el tipo actual seleccionado si se desea crear uno nuevo basado en este)
+  // Sin embargo, si lo que quiere es ver el mismo tipo, lo seleccionamos:
+  document.querySelectorAll(".btn-doc-type").forEach(b => {
+    b.classList.remove("btn-primary");
+    b.classList.add("btn-secondary");
+    if (b.getAttribute("data-type") === f.docType) {
+      b.classList.remove("btn-secondary");
+      b.classList.add("btn-primary");
+      currentFacturaType = f.docType;
+    }
+  });
+  
+  document.getElementById("facturacion-fecha").value = f.date || new Date().toISOString().split("T")[0];
+  document.getElementById("facturacion-nombre").value = f.client || "";
+  
+  const nitInput = document.getElementById("facturacion-nit");
+  nitInput.value = f.nit || "";
+  formatFacturacionNumInput(nitInput);
+  
+  document.getElementById("facturacion-direccion").value = f.direccion || "";
+  document.getElementById("facturacion-telefono").value = f.telefono || "";
+  document.getElementById("facturacion-correo").value = f.correo || "";
+  
+  const deptoSelect = document.getElementById("facturacion-departamento");
+  const ciudadSelect = document.getElementById("facturacion-ciudad");
+  
+  if (f.departamento && deptoSelect.querySelector(`option[value="${f.departamento}"]`)) {
+    deptoSelect.value = f.departamento;
+    if (COLOMBIA_GEODATA[f.departamento]) {
+      ciudadSelect.innerHTML = '<option value="">Seleccione Ciudad...</option>' + 
+        COLOMBIA_GEODATA[f.departamento].sort().map(c => `<option value="${c}">${c}</option>`).join("");
+      ciudadSelect.disabled = false;
+      if (f.ciudad && ciudadSelect.querySelector(`option[value="${f.ciudad}"]`)) {
+        ciudadSelect.value = f.ciudad;
+      }
+    }
+  }
+  
+  document.getElementById("facturacion-observaciones").value = f.observaciones || "";
+  
+  if (f.items && f.items.length > 0) {
+    facturacionItems = f.items.map(i => ({
+      qty: i.qty || 1,
+      desc: i.desc || "",
+      unitPrice: i.unitPrice || 0,
+      discount: i.discount || 0
+    }));
+  }
+  
+  const searchInput = document.getElementById("facturacion-search-history");
+  if (searchInput) searchInput.value = "";
+  document.getElementById("facturacion-search-results").classList.add("hidden");
+  
+  // No sobreescribimos el consecutivo original al cargar, pero sí lo mostramos para la plantilla
+  document.getElementById("facturacion-doc-title").innerHTML = `${f.docType} No. <span id="facturacion-consecutivo">${f.id}</span>`;
+  
+  renderFacturacionItems();
+  updatePrintTemplate();
+  showToast("Factura cargada en el formulario", "success");
+};
+
 
 document.querySelectorAll(".btn-doc-type").forEach(btn => {
   btn.addEventListener("click", function() {
