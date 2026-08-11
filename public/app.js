@@ -4732,6 +4732,9 @@ function renderReservasTable() {
           <button class="btn btn-primary btn-sm btn-ship-reserva" data-idx="${State.reservas.indexOf(res)}">
             <i data-lucide="check"></i> Pagada
           </button>
+          <button class="btn btn-secondary btn-sm btn-abonar-reserva" data-idx="${State.reservas.indexOf(res)}">
+            <i data-lucide="plus"></i> Abonar
+          </button>
           <button class="btn btn-danger btn-sm btn-cancel-reserva" data-idx="${State.reservas.indexOf(res)}">
             <i data-lucide="x"></i> Cancelar
           </button>
@@ -4762,6 +4765,25 @@ function renderReservasTable() {
     btn.onclick = function() {
       const idx = parseInt(this.getAttribute("data-idx"));
       openReservaCancelModal(idx);
+    };
+  });
+
+  // Listener para el botón "Abonar"
+  document.querySelectorAll(".btn-abonar-reserva").forEach(btn => {
+    btn.onclick = function() {
+      const idx = parseInt(this.getAttribute("data-idx"));
+      const res = State.reservas[idx];
+      const val = prompt(`Abono actual: $${res.amount ? parseInt(res.amount, 10).toLocaleString('es-CO') : 0}\n\nIngrese el valor del nuevo abono o cuota a sumar:`);
+      if (val !== null && val.trim() !== "") {
+        const numVal = parseInt(val.replace(/\D/g, ""), 10);
+        if (!isNaN(numVal) && numVal > 0) {
+          res.amount = (parseInt(res.amount, 10) || 0) + numVal;
+          State.save();
+          renderReservasTable();
+        } else {
+          alert("Valor de abono no válido.");
+        }
+      }
     };
   });
 
