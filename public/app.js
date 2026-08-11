@@ -4367,44 +4367,19 @@ function openDocumentDetailModal(id, type) {
       
       const printElement = document.getElementById("modal-invoice-print-area");
       
-      // Crear un contenedor temporal fuera de pantalla con las dimensiones exactas de una hoja Carta
-      const tempContainer = document.createElement("div");
-      tempContainer.style.position = "fixed";
-      tempContainer.style.left = "-9999px";
-      tempContainer.style.top = "-9999px";
-      tempContainer.style.width = "816px";
-      tempContainer.style.height = "1056px";
-      tempContainer.style.background = "white";
-      tempContainer.style.boxSizing = "border-box";
-      
-      const clone = printElement.cloneNode(true);
-      clone.style.width = "100%";
-      clone.style.height = "100%";
-      clone.style.transform = "none";
-      clone.style.margin = "0";
-      clone.style.padding = "48px"; // Añadir el margen del documento como padding de la hoja
-      clone.style.boxSizing = "border-box";
-      
-
-      
-      tempContainer.appendChild(clone);
-      document.body.appendChild(tempContainer);
-      
       const opt = {
-        margin:       0, // Margen cero porque ya está incluido como padding: 48px (0.5 in) en el diseño de la hoja
+        margin:       0.2,
         filename:     `${doc.subType || doc.docType || 'Factura'}_${doc.id}_${doc.client}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2.5, useCORS: true, logging: false },
+        html2canvas:  { scale: 2, useCORS: true, logging: false },
         jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
       };
       
       try {
-        await html2pdf().set(opt).from(tempContainer).save();
+        await html2pdf().set(opt).from(printElement).save();
       } catch (err) {
         console.error(err);
         alert("Error al generar el PDF.");
-      } finally {
-        document.body.removeChild(tempContainer);
       }
       
       btn.disabled = false;
@@ -7292,7 +7267,7 @@ function initFacturacionModule() {
         return;
       }
       
-      const norm = str => str ? str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() : "";
+      const norm = str => (str !== null && str !== undefined) ? String(str).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() : "";
       const query = norm(q);
       
       const matches = State.facturacion.filter(f => {
