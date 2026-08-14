@@ -7359,8 +7359,8 @@ window.loadFacturaIntoForm = function(id) {
   if (searchInput) searchInput.value = "";
   document.getElementById("facturacion-search-results").classList.add("hidden");
   
-  // No sobreescribimos el consecutivo original al cargar, pero sí lo mostramos para la plantilla
-  document.getElementById("facturacion-doc-title").innerHTML = `${f.docType} No. <span id="facturacion-consecutivo">${f.id}</span>`;
+  // No sobreescribimos el consecutivo original al cargar, para que actúe como plantilla para una NUEVA factura.
+  // document.getElementById("facturacion-doc-title").innerHTML = `${f.docType} No. <span id="facturacion-consecutivo">${f.id}</span>`;
   
   renderFacturacionItems();
   updatePrintTemplate();
@@ -7384,7 +7384,15 @@ document.querySelectorAll(".btn-doc-type").forEach(btn => {
 
 function updateFacturacionHeader() {
   const filtered = State.facturacion.filter(f => f.docType === currentFacturaType);
-  const nextNum = filtered.length + 1001;
+  let maxNum = 1000;
+  if (filtered.length > 0) {
+    const nums = filtered.map(f => {
+      const parts = f.id.split('-');
+      return parts.length > 1 ? parseInt(parts[1], 10) || 0 : 0;
+    });
+    maxNum = Math.max(1000, ...nums);
+  }
+  const nextNum = maxNum + 1;
   const prefix = currentFacturaType === "Cotización" ? "COT" : (currentFacturaType === "Pre-Factura" ? "PRE" : "FAC");
   const consec = `${prefix}-${String(nextNum).padStart(4, "0")}`;
   
@@ -7656,7 +7664,12 @@ document.getElementById("form-facturacion").addEventListener("submit", async fun
     total: totalPagar
   };
 
-  State.facturacion.push(nuevoDoc);
+  const existingIndex = State.facturacion.findIndex(f => f.id === consecElement);
+  if (existingIndex !== -1) {
+    State.facturacion[existingIndex] = nuevoDoc;
+  } else {
+    State.facturacion.push(nuevoDoc);
+  }
   State.save();
   
   updateSummaryWidget();
