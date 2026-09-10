@@ -4065,6 +4065,14 @@ function renderDocumentsHistory() {
         <button class="btn btn-danger btn-sm btn-delete-doc" data-id="${doc.id}" data-type="${doc.docType}" title="Eliminar"><i data-lucide="trash"></i></button>
       `;
 
+      if (doc.docType === "Ingreso") {
+        actionButtons = `
+          <button class="btn btn-secondary btn-sm btn-view-doc" data-id="${doc.id}" data-type="${doc.docType}" title="Visualizar"><i data-lucide="eye"></i></button>
+          <button class="btn btn-secondary btn-sm btn-edit-ingreso-serials" data-id="${doc.id}" title="Editar Seriales"><i data-lucide="edit-3"></i></button>
+          <button class="btn btn-danger btn-sm btn-delete-doc" data-id="${doc.id}" data-type="${doc.docType}" title="Eliminar"><i data-lucide="trash"></i></button>
+        `;
+      }
+
       if (doc.docType === "Traslado") {
         actionButtons = `
           <button class="btn btn-secondary btn-sm btn-view-doc" data-id="${doc.id}" data-type="${doc.docType}" title="Visualizar"><i data-lucide="eye"></i></button>
@@ -4148,6 +4156,16 @@ function renderDocumentsHistory() {
       }
     };
   });
+  document.querySelectorAll(".btn-edit-ingreso-serials").forEach(btn => {
+    btn.onclick = function() {
+      if (!State.activeUser || State.activeUser.role !== "Administrador") {
+        alert("No tiene permisos para editar documentos.");
+        return;
+      }
+      const id = this.getAttribute("data-id");
+      openEditIngresoSerialsListModal(id);
+    };
+  });
 
   document.querySelectorAll(".btn-delete-doc").forEach(btn => {
     btn.onclick = function() {
@@ -4196,6 +4214,52 @@ function renderDocumentsHistory() {
 document.getElementById("search-docs-input").addEventListener("input", renderDocumentsHistory);
 document.getElementById("search-docs-product").addEventListener("input", renderDocumentsHistory);
 document.getElementById("filter-docs-type").onchange = renderDocumentsHistory;
+
+function openEditIngresoSerialsListModal(id) {
+  const doc = State.ingresos.find(d => d.id === id);
+  if (!doc) return;
+  
+  const tbody = document.getElementById("edit-ingreso-list-tbody");
+  tbody.innerHTML = "";
+  
+  let hasMeItems = false;
+  
+  if (doc.items) {
+    doc.items.forEach((item, index) => {
+      const p = State.products.find(prod => prod.sku === item.sku);
+      if (p && p.category === "ME") {
+        hasMeItems = true;
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${item.sku}</td>
+          <td>${item.qty}</td>
+          <td><button class="btn btn-primary btn-sm btn-edit-this-serial">Editar Seriales</button></td>
+        `;
+        tr.querySelector(".btn-edit-this-serial").onclick = function() {
+          openAssignSerialsModal(p, item.qty, function(newSerials) {
+            item.serials = newSerials;
+            State.save();
+            renderDocumentsHistory();
+            alert("Seriales actualizados correctamente.");
+            document.getElementById("modal-edit-ingreso-list").classList.add("hidden");
+          }, item.serials || []);
+        };
+        tbody.appendChild(tr);
+      }
+    });
+  }
+  
+  if (!hasMeItems) {
+    tbody.innerHTML = `<tr><td colspan="3" class="text-center text-muted">Este ingreso no contiene productos de categoría ME.</td></tr>`;
+  }
+  
+  document.getElementById("modal-edit-ingreso-list").classList.remove("hidden");
+  lucide.createIcons();
+}
+
+document.getElementById("btn-close-edit-ingreso-list").onclick = () => {
+  document.getElementById("modal-edit-ingreso-list").classList.add("hidden");
+};
 
 // Detalle Modal
 function openDocumentDetailModal(id, type) {
@@ -6906,7 +6970,7 @@ function getAvailableSerials(sku, warehouse) {
   return Object.keys(serialsMap);
 }
 
-function openAssignSerialsModal(p, qty, callback) {
+function openAssignSerialsModal(p, qty, callback, existingSerials = []) {
   serialsCurrentProduct = p;
   serialsTargetQty = qty;
   serialsModalCallback = callback;
@@ -6914,8 +6978,10 @@ function openAssignSerialsModal(p, qty, callback) {
   document.getElementById("assign-serials-req-qty").textContent = qty;
   document.getElementById("assign-serials-sku").textContent = p.sku;
   document.getElementById("assign-serials-target").textContent = qty;
-  document.getElementById("assign-serials-count").textContent = "0";
-  document.getElementById("assign-serials-manual").value = "";
+  
+  let initialValue = existingSerials && existingSerials.length > 0 ? existingSerials.join("\n") + "\n" : "";
+  document.getElementById("assign-serials-manual").value = initialValue;
+  document.getElementById("assign-serials-count").textContent = existingSerials && existingSerials.length ? existingSerials.length : "0";
   document.getElementById("assign-serials-excel").value = "";
   
   document.getElementById("modal-assign-serials").classList.remove("hidden");
