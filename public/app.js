@@ -6298,6 +6298,13 @@ const FIELD_COORDINATES = {
     celular: { left: "51.1%", top: "35.5%", width: "42.0%" },
     ciudad: { left: "13.2%", top: "42.5%", width: "80.0%" },
     direccion: { left: "17.0%", top: "49.5%", width: "76.0%" }
+  },
+  "Energía Solar": {
+    nombre: { left: "18.5%", top: "33.5%", width: "75.0%" },
+    cc: { left: "10.1%", top: "39.5%", width: "35.0%" },
+    celular: { left: "68.1%", top: "39.5%", width: "25.0%" },
+    ciudad: { left: "16.2%", top: "44.5%", width: "75.0%" },
+    direccion: { left: "20.0%", top: "49.5%", width: "70.0%" }
   }
 };
 
@@ -6507,6 +6514,7 @@ function initRotulosModule() {
   
   const btnTym = document.getElementById("btn-select-label-tym");
   const btnMe = document.getElementById("btn-select-label-me");
+  const btnEnergia = document.getElementById("btn-select-label-energia");
   const form = document.getElementById("form-rotulo-envio");
   const btnExportar = document.getElementById("btn-exportar-rotulo-pdf");
   
@@ -6598,6 +6606,12 @@ function initRotulosModule() {
   btnMe.classList.add("btn-outline-secondary");
   btnMe.classList.remove("btn-secondary");
 
+  if (btnEnergia) {
+    btnEnergia.classList.remove("active");
+    btnEnergia.classList.add("btn-outline-secondary");
+    btnEnergia.classList.remove("btn-secondary");
+  }
+
   btnTym.onclick = function() {
     selectedLabelType = "T&M";
     
@@ -6608,6 +6622,10 @@ function initRotulosModule() {
     btnMe.classList.remove("active");
     btnMe.classList.add("btn-outline-secondary");
     btnMe.classList.remove("btn-secondary");
+
+    btnEnergia.classList.remove("active");
+    btnEnergia.classList.add("btn-outline-secondary");
+    btnEnergia.classList.remove("btn-secondary");
     
     document.getElementById("preview-badge-type").textContent = "T&M";
     document.getElementById("preview-badge-type").className = "badge badge-success";
@@ -6628,6 +6646,10 @@ function initRotulosModule() {
     btnTym.classList.remove("active");
     btnTym.classList.add("btn-outline-primary");
     btnTym.classList.remove("btn-primary");
+
+    btnEnergia.classList.remove("active");
+    btnEnergia.classList.add("btn-outline-secondary");
+    btnEnergia.classList.remove("btn-secondary");
     
     document.getElementById("preview-badge-type").textContent = "ME";
     document.getElementById("preview-badge-type").className = "badge badge-teal";
@@ -6635,6 +6657,30 @@ function initRotulosModule() {
     document.getElementById("rotulo-me-extra-fields").classList.remove("hidden");
     renderPdfTemplate(ROTULO_TEMPLATE_ME_B64, "ME");
     applyFieldCoordinates("ME");
+    updateRotuloPreview();
+  };
+
+  btnEnergia.onclick = function() {
+    selectedLabelType = "Energía Solar";
+    
+    btnEnergia.classList.add("active");
+    btnEnergia.classList.remove("btn-outline-secondary");
+    btnEnergia.classList.add("btn-secondary");
+    
+    btnTym.classList.remove("active");
+    btnTym.classList.add("btn-outline-primary");
+    btnTym.classList.remove("btn-primary");
+    
+    btnMe.classList.remove("active");
+    btnMe.classList.add("btn-outline-secondary");
+    btnMe.classList.remove("btn-secondary");
+    
+    document.getElementById("preview-badge-type").textContent = "Energía Solar";
+    document.getElementById("preview-badge-type").className = "badge badge-warning";
+    
+    document.getElementById("rotulo-me-extra-fields").classList.add("hidden");
+    renderPdfTemplate(ROTULO_TEMPLATE_ENERGIA_B64, "Energía Solar");
+    applyFieldCoordinates("Energía Solar");
     updateRotuloPreview();
   };
 
