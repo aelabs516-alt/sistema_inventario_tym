@@ -3348,11 +3348,9 @@ function renderDashboardCharts() {
               const category = tooltipItems[0].label;
               const prods = catProductSales[category];
               if (!prods) return [];
-              const lines = [];
-              for (const [name, qty] of Object.entries(prods)) {
-                if (qty > 0) lines.push(`- ${name}: ${qty}`);
-              }
-              return lines;
+              const entries = Object.entries(prods).filter(e => e[1] > 0);
+              entries.sort((a, b) => b[1] - a[1]);
+              return entries.map(e => `- ${e[0]}: ${e[1]}`);
             }
           }
         }
