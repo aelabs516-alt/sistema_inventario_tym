@@ -3900,6 +3900,45 @@ function getFilteredExportData(type) {
         "Estado": s.active ? "Activo" : "Inactivo"
       });
     });
+  } else if (type === "facturacion") {
+    // Reporte del modulo facturacion
+    const filteredFacturacion = filterDocuments(State.facturacion || []);
+
+    filteredFacturacion.forEach(doc => {
+      // Filtrar solo las facturas o todas? El usuario dice "reporte del modulo facturacion"
+      // Asumimos que incluimos todas (Factura, Cotización, Pre-Factura) porque el filtro ya hace lo suyo,
+      // pero el prompt dice "estos 2 botones unicamente aplican para Factura".
+      // Los extraeremos igual. Si no existen en cotización, estarán vacíos.
+      
+      const obs = doc.observaciones || "";
+      // Regex case insensitive porque se guarda en mayúsculas (.toUpperCase())
+      const feMatch = obs.match(/APLICA PARA FACTURA ELECTRÓNICA:\s*(.*)/i);
+      const facturaNum = feMatch ? feMatch[1].trim().split('\n')[0] : "";
+      const retencion = obs.match(/CLIENTE EXIGE RETENCIÓN: SÍ/i) ? "Sí" : "No";
+
+      if (doc.items && Array.isArray(doc.items)) {
+        doc.items.forEach(item => {
+          data.push({
+            "Fecha": doc.date || "",
+            "Factura de Venta No.": doc.id || "",
+            "Nombre o razón social": doc.client || "",
+            "Nit / CC": doc.nit || "",
+            "Dirección": doc.direccion || "",
+            "Departamento": doc.departamento || "",
+            "Ciudad": doc.ciudad || "",
+            "Teléfono": doc.telefono || "",
+            "Correo electrónico": doc.correo || "",
+            "Cant.": item.qty || 0,
+            "Descripción": item.desc || "",
+            "Valor unidad": formatCurrency(item.unitPrice || 0),
+            "Valor DCTO": formatCurrency(item.discount || 0),
+            "Valor total": formatCurrency(((item.qty || 0) * (item.unitPrice || 0)) - (item.discount || 0)),
+            "Factura electrónica": facturaNum,
+            "Retención (si/no)": retencion
+          });
+        });
+      }
+    });
   }
 
   return data;
