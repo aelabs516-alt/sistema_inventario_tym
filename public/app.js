@@ -7448,7 +7448,8 @@ function initFacturacionModule() {
     document.getElementById("facturacion-direccion").addEventListener("input", updatePrintTemplate);
     document.getElementById("facturacion-telefono").addEventListener("input", updatePrintTemplate);
     document.getElementById("facturacion-correo").addEventListener("input", updatePrintTemplate);
-    const FE_TEXT = "Aplica para Factura Electrónica: SÍ";
+    const FE_PREFIX = "Aplica para Factura Electrónica:";
+    const feRegex = new RegExp(`${FE_PREFIX}\\s*(.*)`);
     const RET_TEXT = "Cliente Exige Retención: SÍ";
 
     document.getElementById("facturacion-observaciones").addEventListener("input", function() {
@@ -7456,7 +7457,7 @@ function initFacturacionModule() {
       toggleGarantia.checked = this.value.includes(GARANTIA_NOTA_TEXT);
       
       const toggleFE = document.getElementById("facturacion-toggle-fe");
-      toggleFE.checked = this.value.includes(FE_TEXT);
+      toggleFE.checked = feRegex.test(this.value);
       const retContainer = document.getElementById("container-facturacion-retencion");
       retContainer.style.display = toggleFE.checked ? "flex" : "none";
 
@@ -7494,17 +7495,27 @@ function initFacturacionModule() {
       const retToggle = document.getElementById("facturacion-toggle-retencion");
       
       if (this.checked) {
+        let invoiceNum = prompt("Por favor, ingrese el número de factura:");
+        if (invoiceNum === null || invoiceNum.trim() === "") {
+          this.checked = false;
+          return;
+        }
         retContainer.style.display = "flex";
-        if (!currentVal.includes(FE_TEXT)) {
-          obsTextarea.value = currentVal.trim() === "" ? FE_TEXT : currentVal.trim() + "\n" + FE_TEXT;
+        let newFeText = FE_PREFIX + " " + invoiceNum.trim();
+        if (!feRegex.test(currentVal)) {
+          obsTextarea.value = currentVal.trim() === "" ? newFeText : currentVal.trim() + "\n" + newFeText;
+        } else {
+          obsTextarea.value = currentVal.replace(feRegex, newFeText);
         }
       } else {
         retContainer.style.display = "none";
         retToggle.checked = false;
         
         let newVal = obsTextarea.value;
-        if (newVal.includes(FE_TEXT)) newVal = newVal.replace(FE_TEXT, "");
+        newVal = newVal.replace(feRegex, "");
         if (newVal.includes(RET_TEXT)) newVal = newVal.replace(RET_TEXT, "");
+        // Clean up empty lines
+        newVal = newVal.replace(/\n\s*\n/g, '\n');
         obsTextarea.value = newVal.trim();
       }
       updatePrintTemplate();
@@ -7680,6 +7691,26 @@ function updateFacturacionHeader() {
   
   document.getElementById("facturacion-consecutivo").textContent = consec;
   document.getElementById("facturacion-doc-title").innerHTML = `${currentFacturaType} No. <span id="facturacion-consecutivo">${consec}</span>`;
+  
+  const containerFE = document.getElementById("container-facturacion-fe");
+  const toggleFE = document.getElementById("facturacion-toggle-fe");
+  const toggleRet = document.getElementById("facturacion-toggle-retencion");
+  const containerRet = document.getElementById("container-facturacion-retencion");
+
+  if (currentFacturaType === "Factura De Venta") {
+    containerFE.style.display = "flex";
+  } else {
+    containerFE.style.display = "none";
+    if (toggleFE.checked || toggleRet.checked) {
+      toggleFE.checked = false;
+      toggleRet.checked = false;
+      containerRet.style.display = "none";
+      // We should also remove the text from observations but let's let updatePrintTemplate or manual edit handle it,
+      // or we can just trigger the change event.
+      toggleFE.dispatchEvent(new Event('change'));
+    }
+  }
+
   updatePrintTemplate();
 }
 
