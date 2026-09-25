@@ -6951,7 +6951,7 @@ function exportarRotuloPDF() {
     margin:       0,
     filename:     `Rotulo_${tipo}_${nombre.replace(/\s+/g, '_')}_${Date.now()}.pdf`,
     image:        { type: 'jpeg', quality: 0.98 },
-    html2canvas:  { scale: 2.5, useCORS: true, logging: false },
+    html2canvas:  { scale: 1.5, useCORS: true, logging: false },
     jsPDF:        { unit: 'in', format: format, orientation: orientation }
   };
 
@@ -7990,6 +7990,8 @@ document.getElementById("form-facturacion").addEventListener("submit", async fun
   btnExportar.disabled = true;
   btnExportar.innerHTML = `<i data-lucide="loader" class="spin"></i> Generando PDF...`;
   
+  await new Promise(r => setTimeout(r, 50)); // Allow UI to update before locking the thread
+  
   updatePrintTemplate(); // Ensure latest data is pushed
   
   const fecha = document.getElementById("facturacion-fecha").value;
@@ -8019,7 +8021,7 @@ document.getElementById("form-facturacion").addEventListener("submit", async fun
     margin:       0, // Margen cero porque ya está incluido como padding: 48px (0.5 in) en el diseño de la hoja
     filename:     `${currentFacturaType}_${consecElement}_${nombre}.pdf`,
     image:        { type: 'jpeg', quality: 0.98 },
-    html2canvas:  { scale: 2.5, useCORS: true, logging: false },
+    html2canvas:  { scale: 1.5, useCORS: true, logging: false },
     jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
   };
   
