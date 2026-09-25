@@ -7448,9 +7448,21 @@ function initFacturacionModule() {
     document.getElementById("facturacion-direccion").addEventListener("input", updatePrintTemplate);
     document.getElementById("facturacion-telefono").addEventListener("input", updatePrintTemplate);
     document.getElementById("facturacion-correo").addEventListener("input", updatePrintTemplate);
+    const FE_TEXT = "Aplica para Factura Electrónica: SÍ";
+    const RET_TEXT = "Cliente Exige Retención: SÍ";
+
     document.getElementById("facturacion-observaciones").addEventListener("input", function() {
-      const toggle = document.getElementById("facturacion-toggle-garantia");
-      toggle.checked = this.value.includes(GARANTIA_NOTA_TEXT);
+      const toggleGarantia = document.getElementById("facturacion-toggle-garantia");
+      toggleGarantia.checked = this.value.includes(GARANTIA_NOTA_TEXT);
+      
+      const toggleFE = document.getElementById("facturacion-toggle-fe");
+      toggleFE.checked = this.value.includes(FE_TEXT);
+      const retContainer = document.getElementById("container-facturacion-retencion");
+      retContainer.style.display = toggleFE.checked ? "flex" : "none";
+
+      const toggleRet = document.getElementById("facturacion-toggle-retencion");
+      toggleRet.checked = this.value.includes(RET_TEXT);
+
       updatePrintTemplate();
     });
     
@@ -7469,6 +7481,46 @@ function initFacturacionModule() {
       } else {
         if (currentVal.includes(GARANTIA_NOTA_TEXT)) {
           let newVal = currentVal.replace(GARANTIA_NOTA_TEXT, "").trim();
+          obsTextarea.value = newVal;
+        }
+      }
+      updatePrintTemplate();
+    });
+
+    document.getElementById("facturacion-toggle-fe").addEventListener("change", function() {
+      const obsTextarea = document.getElementById("facturacion-observaciones");
+      let currentVal = obsTextarea.value;
+      const retContainer = document.getElementById("container-facturacion-retencion");
+      const retToggle = document.getElementById("facturacion-toggle-retencion");
+      
+      if (this.checked) {
+        retContainer.style.display = "flex";
+        if (!currentVal.includes(FE_TEXT)) {
+          obsTextarea.value = currentVal.trim() === "" ? FE_TEXT : currentVal.trim() + "\n" + FE_TEXT;
+        }
+      } else {
+        retContainer.style.display = "none";
+        retToggle.checked = false;
+        
+        let newVal = obsTextarea.value;
+        if (newVal.includes(FE_TEXT)) newVal = newVal.replace(FE_TEXT, "");
+        if (newVal.includes(RET_TEXT)) newVal = newVal.replace(RET_TEXT, "");
+        obsTextarea.value = newVal.trim();
+      }
+      updatePrintTemplate();
+    });
+
+    document.getElementById("facturacion-toggle-retencion").addEventListener("change", function() {
+      const obsTextarea = document.getElementById("facturacion-observaciones");
+      let currentVal = obsTextarea.value;
+      
+      if (this.checked) {
+        if (!currentVal.includes(RET_TEXT)) {
+          obsTextarea.value = currentVal.trim() === "" ? RET_TEXT : currentVal.trim() + "\n" + RET_TEXT;
+        }
+      } else {
+        if (currentVal.includes(RET_TEXT)) {
+          let newVal = currentVal.replace(RET_TEXT, "").trim();
           obsTextarea.value = newVal;
         }
       }
@@ -7916,6 +7968,7 @@ document.getElementById("form-facturacion").addEventListener("submit", async fun
     // Resetear formulario
     facturacionItems = [{qty: 1, desc: "", unitPrice: 0, discount: 0}];
     document.getElementById("form-facturacion").reset();
+    document.getElementById("container-facturacion-retencion").style.display = "none";
     document.getElementById("facturacion-fecha").value = new Date().toISOString().split("T")[0];
     updateFacturacionHeader();
     renderFacturacionItems();

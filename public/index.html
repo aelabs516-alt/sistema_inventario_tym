@@ -1628,12 +1628,35 @@
                       <div class="form-group" style="flex: 1; min-width: 200px;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                           <label style="margin: 0;">Observaciones</label>
-                          <div style="display: flex; align-items: center; gap: 8px;">
-                            <span style="font-size: 12px; color: #dc2626; font-weight: bold;">Insertar Garantía</span>
-                            <label class="switch">
-                              <input type="checkbox" id="facturacion-toggle-garantia">
-                              <span class="slider"></span>
-                            </label>
+                          <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+                            
+                            <!-- Toggle Garantía -->
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                              <span style="font-size: 12px; color: #dc2626; font-weight: bold;">Garantía</span>
+                              <label class="switch">
+                                <input type="checkbox" id="facturacion-toggle-garantia">
+                                <span class="slider"></span>
+                              </label>
+                            </div>
+
+                            <!-- Toggle Factura Electrónica -->
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                              <span style="font-size: 12px; color: #0284c7; font-weight: bold;">Factura Electrónica</span>
+                              <label class="switch">
+                                <input type="checkbox" id="facturacion-toggle-fe">
+                                <span class="slider"></span>
+                              </label>
+                            </div>
+
+                            <!-- Toggle Retención (oculto por defecto) -->
+                            <div id="container-facturacion-retencion" style="display: none; align-items: center; gap: 6px;">
+                              <span style="font-size: 12px; color: #eab308; font-weight: bold;">Retención</span>
+                              <label class="switch">
+                                <input type="checkbox" id="facturacion-toggle-retencion">
+                                <span class="slider"></span>
+                              </label>
+                            </div>
+
                           </div>
                         </div>
                         <textarea id="facturacion-observaciones" rows="4" placeholder="Notas adicionales..."></textarea>
