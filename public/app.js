@@ -3192,6 +3192,8 @@ function renderStockProjectionsTable() {
 // ==========================================================================
 let activeDbFilters = { years: [], months: [], days: [], categories: [], warehouses: [], products: [] };
 let salesChartInst = null;
+let salesTrendChartInst = null;
+let salesProductBarChartInst = null;
 let stockChartInst = null;
 let ingresosChartInst = null;
 let sellersChartInst = null;
@@ -3306,6 +3308,8 @@ function renderDashboardCharts() {
 
   // --- CHART 1: VENTAS/SALIDAS POR CATEGORÍA ---
   const catSales = { "T&M": 0, "ME": 0, "Accesorios ME": 0 };
+  const catProductSales = { "T&M": {}, "ME": {}, "Accesorios ME": {} };
+  
   filteredSalidas.forEach(doc => {
     if (doc.items) {
       doc.items.forEach(item => {
@@ -3313,6 +3317,8 @@ function renderDashboardCharts() {
         const productMatch = activeDbFilters.products.length === 0 || activeDbFilters.products.includes(item.sku);
         if (categoryMatch && productMatch) {
           catSales[item.category] = (catSales[item.category] || 0) + item.qty;
+          if (!catProductSales[item.category]) catProductSales[item.category] = {};
+          catProductSales[item.category][item.name] = (catProductSales[item.category][item.name] || 0) + item.qty;
         }
       });
     }
@@ -3335,7 +3341,117 @@ function renderDashboardCharts() {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
+        legend: { position: 'bottom', labels: { font: { family: 'Poppins' } } },
+        tooltip: {
+          callbacks: {
+            afterBody: function(tooltipItems) {
+              const category = tooltipItems[0].label;
+              const prods = catProductSales[category];
+              if (!prods) return [];
+              const lines = [];
+              for (const [name, qty] of Object.entries(prods)) {
+                if (qty > 0) lines.push(`- ${name}: ${qty}`);
+              }
+              return lines;
+            }
+          }
+        }
+      }
+    }
+  });
+
+  // --- CHART: EVOLUCIÓN DE VENTAS (LINE) ---
+  const daysInMonth = Array.from({length: 31}, (_, i) => i + 1);
+  const salesByProductAndDay = {}; 
+  const totalSalesByProduct = {}; 
+  const productNames = {}; 
+
+  filteredSalidas.forEach(doc => {
+    if (!doc.date) return;
+    const parts = doc.date.split("-");
+    if (parts.length < 3) return;
+    const docDay = parseInt(parts[2]);
+
+    if (doc.items) {
+      doc.items.forEach(item => {
+        const categoryMatch = activeDbFilters.categories.length === 0 || activeDbFilters.categories.includes(item.category);
+        const productMatch = activeDbFilters.products.length === 0 || activeDbFilters.products.includes(item.sku);
+        if (categoryMatch && productMatch) {
+          if (!salesByProductAndDay[item.sku]) {
+            salesByProductAndDay[item.sku] = {};
+            totalSalesByProduct[item.sku] = 0;
+            productNames[item.sku] = item.name;
+          }
+          salesByProductAndDay[item.sku][docDay] = (salesByProductAndDay[item.sku][docDay] || 0) + item.qty;
+          totalSalesByProduct[item.sku] += item.qty;
+        }
+      });
+    }
+  });
+
+  const lineDatasets = [];
+  const palette = ['#018C8C', '#f59e0b', '#38bdf8', '#ef4444', '#8b5cf6', '#10b981', '#ec4899', '#f97316'];
+  let colorIndex = 0;
+
+  for (const sku in salesByProductAndDay) {
+    const dataPoints = daysInMonth.map(d => salesByProductAndDay[sku][d] || 0);
+    lineDatasets.push({
+      label: productNames[sku],
+      data: dataPoints,
+      borderColor: palette[colorIndex % palette.length],
+      backgroundColor: palette[colorIndex % palette.length],
+      tension: 0.1
+    });
+    colorIndex++;
+  }
+
+  const ctxLine = document.getElementById("chart-sales-trend-line").getContext("2d");
+  if (salesTrendChartInst) salesTrendChartInst.destroy();
+  salesTrendChartInst = new Chart(ctxLine, {
+    type: 'line',
+    data: {
+      labels: daysInMonth.map(d => String(d)),
+      datasets: lineDatasets
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
         legend: { position: 'bottom', labels: { font: { family: 'Poppins' } } }
+      },
+      scales: {
+        y: { beginAtZero: true, title: { display: true, text: 'Unidades' } },
+        x: { title: { display: true, text: 'Días del Mes' } }
+      }
+    }
+  });
+
+  // --- CHART: BAR CHART (TOTAL UNIDADES POR PRODUCTO) ---
+  const sortedProducts = Object.keys(totalSalesByProduct).sort((a, b) => totalSalesByProduct[b] - totalSalesByProduct[a]);
+  const barLabels = sortedProducts.map(sku => productNames[sku]);
+  const barData = sortedProducts.map(sku => totalSalesByProduct[sku]);
+
+  const ctxBar = document.getElementById("chart-sales-product-bar").getContext("2d");
+  if (salesProductBarChartInst) salesProductBarChartInst.destroy();
+  salesProductBarChartInst = new Chart(ctxBar, {
+    type: 'bar',
+    data: {
+      labels: barLabels,
+      datasets: [{
+        label: 'Unidades Totales',
+        data: barData,
+        backgroundColor: '#38bdf8',
+        borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        y: { beginAtZero: true, title: { display: true, text: 'Unidades' } }
       }
     }
   });
@@ -3724,11 +3840,13 @@ function getFilteredExportData(type) {
 
     filteredIngresos.forEach(doc => {
       doc.items.forEach(item => {
+        const prod = State.products.find(p => p.sku === item.sku);
         data.push({
           "Folio": doc.id,
           "Fecha": doc.date,
           "Tipo": "Ingreso",
           "Bodega": doc.warehouse,
+          "Categoría": prod ? prod.category : "",
           "SKU": item.sku,
           "Producto": item.name,
           "Cantidad": item.qty,
@@ -3743,11 +3861,13 @@ function getFilteredExportData(type) {
 
     filteredSalidas.forEach(doc => {
       doc.items.forEach(item => {
+        const prod = State.products.find(p => p.sku === item.sku);
         data.push({
           "Folio": doc.id,
           "Fecha": doc.date,
           "Tipo": "Salida / Despacho",
           "Bodega": doc.warehouse,
+          "Categoría": prod ? prod.category : "",
           "SKU": item.sku,
           "Producto": item.name,
           "Cantidad": item.qty,
