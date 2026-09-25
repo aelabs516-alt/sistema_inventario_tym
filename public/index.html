@@ -2811,6 +2811,26 @@
     </div>
   </div>
 
+  <!-- Modal Factura Electrónica Prompt -->
+  <div id="modal-invoice-prompt" class="modal-wrapper hidden">
+    <div class="modal-card" style="max-width: 400px;">
+      <div class="modal-header">
+        <h4>Factura Electrónica</h4>
+        <button class="modal-close-btn" id="btn-close-invoice-prompt"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body">
+        <p style="margin-bottom: 10px;">Por favor, ingrese el número de factura:</p>
+        <div class="form-group">
+          <input type="text" id="input-invoice-prompt" class="form-control" placeholder="Ej. 12345" autocomplete="off">
+        </div>
+      </div>
+      <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px;">
+        <button class="btn btn-secondary" id="btn-cancel-invoice-prompt">Cancelar</button>
+        <button class="btn btn-primary" id="btn-confirm-invoice-prompt">Aceptar</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Script Principal -->
   <script src="colombia_geodata.js"></script>
   <script src="app.js"></script>

@@ -7488,37 +7488,71 @@ function initFacturacionModule() {
       updatePrintTemplate();
     });
 
-    document.getElementById("facturacion-toggle-fe").addEventListener("change", function() {
+    const modalInvoice = document.getElementById("modal-invoice-prompt");
+    const inputInvoice = document.getElementById("input-invoice-prompt");
+    const toggleFE = document.getElementById("facturacion-toggle-fe");
+
+    const closeInvoiceModal = () => {
+      modalInvoice.classList.add("hidden");
+    };
+
+    const confirmInvoiceModal = () => {
+      const invoiceNum = inputInvoice.value;
       const obsTextarea = document.getElementById("facturacion-observaciones");
-      let currentVal = obsTextarea.value;
       const retContainer = document.getElementById("container-facturacion-retencion");
-      const retToggle = document.getElementById("facturacion-toggle-retencion");
       
-      if (this.checked) {
-        let invoiceNum = prompt("Por favor, ingrese el número de factura:");
-        if (invoiceNum === null || invoiceNum.trim() === "") {
-          this.checked = false;
-          return;
-        }
-        retContainer.style.display = "flex";
-        let newFeText = FE_PREFIX + " " + invoiceNum.trim();
-        if (!feRegex.test(currentVal)) {
-          obsTextarea.value = currentVal.trim() === "" ? newFeText : currentVal.trim() + "\n" + newFeText;
-        } else {
-          obsTextarea.value = currentVal.replace(feRegex, newFeText);
-        }
+      if (invoiceNum === null || invoiceNum.trim() === "") {
+        toggleFE.checked = false;
+        closeInvoiceModal();
+        updatePrintTemplate();
+        return;
+      }
+      
+      let currentVal = obsTextarea.value;
+      retContainer.style.display = "flex";
+      let newFeText = FE_PREFIX + " " + invoiceNum.trim();
+      if (!feRegex.test(currentVal)) {
+        obsTextarea.value = currentVal.trim() === "" ? newFeText : currentVal.trim() + "\n" + newFeText;
       } else {
+        obsTextarea.value = currentVal.replace(feRegex, newFeText);
+      }
+      closeInvoiceModal();
+      updatePrintTemplate();
+    };
+
+    const cancelInvoiceModal = () => {
+      toggleFE.checked = false;
+      closeInvoiceModal();
+      updatePrintTemplate();
+    };
+
+    document.getElementById("btn-confirm-invoice-prompt").addEventListener("click", confirmInvoiceModal);
+    document.getElementById("btn-cancel-invoice-prompt").addEventListener("click", cancelInvoiceModal);
+    document.getElementById("btn-close-invoice-prompt").addEventListener("click", cancelInvoiceModal);
+    inputInvoice.addEventListener("keydown", (evt) => {
+      if (evt.key === "Enter") confirmInvoiceModal();
+      if (evt.key === "Escape") cancelInvoiceModal();
+    });
+
+    toggleFE.addEventListener("change", function(e) {
+      if (this.checked) {
+        modalInvoice.classList.remove("hidden");
+        inputInvoice.value = "";
+        setTimeout(() => inputInvoice.focus(), 50);
+      } else {
+        const retContainer = document.getElementById("container-facturacion-retencion");
+        const retToggle = document.getElementById("facturacion-toggle-retencion");
         retContainer.style.display = "none";
         retToggle.checked = false;
         
+        const obsTextarea = document.getElementById("facturacion-observaciones");
         let newVal = obsTextarea.value;
         newVal = newVal.replace(feRegex, "");
         if (newVal.includes(RET_TEXT)) newVal = newVal.replace(RET_TEXT, "");
-        // Clean up empty lines
         newVal = newVal.replace(/\n\s*\n/g, '\n');
         obsTextarea.value = newVal.trim();
+        updatePrintTemplate();
       }
-      updatePrintTemplate();
     });
 
     document.getElementById("facturacion-toggle-retencion").addEventListener("change", function() {
