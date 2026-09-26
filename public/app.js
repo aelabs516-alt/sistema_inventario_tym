@@ -1980,6 +1980,26 @@ document.getElementById("exit-pve").addEventListener("change", function() {
   const sellerSelect = document.getElementById("exit-seller");
   const channelSelect = document.getElementById("exit-channel");
 
+  const mlValues = ["mercado libre despacho", "mercado libre flex", "mercado libre full"];
+  const isML = mlValues.includes(pve);
+  const isFalabella = pve === "falabella";
+
+  if (isML || isFalabella) {
+    document.getElementById("group-exit-venta-num").classList.remove("hidden");
+    const lbl = document.querySelector("#group-exit-venta-num label");
+    const inp = document.getElementById("exit-venta-num");
+    if (isML) {
+      lbl.innerHTML = '# Venta <span class="text-danger">*</span>';
+      inp.placeholder = "Ingrese número de venta único";
+    } else {
+      lbl.innerHTML = 'Orden No. <span class="text-danger">*</span>';
+      inp.placeholder = "Ingrese Orden No. única";
+    }
+  } else {
+    document.getElementById("group-exit-venta-num").classList.add("hidden");
+    document.getElementById("exit-venta-num").value = "";
+  }
+
   function setSelectOrAdd(select, val) {
     if (!select) return;
     let found = false;
@@ -2201,6 +2221,7 @@ document.getElementById("form-stock-exit").addEventListener("submit", async (e) 
 
   const hasMeProduct = currentExitItems.some(item => item.category === "ME" || item.category === "Accesorios ME" || item.category === "T&M");
   let client = "", carrier = "", shippingCost = 0, seller = "", channel = "", ean = "", mastershop = "No", facturaElectronica = "No", carrierGuide = "";
+  let ventaNum = "";
 
   if (hasMeProduct) {
     const clNombre = document.getElementById("exit-client-nombre").value.trim().toUpperCase();
@@ -2223,6 +2244,26 @@ document.getElementById("form-stock-exit").addEventListener("submit", async (e) 
     facturaElectronica = document.getElementById("exit-factura-electronica").value;
     ean = document.getElementById("exit-me-serials").value;
 
+    const pveLower = pve.toLowerCase();
+    const mlValues = ["mercado libre despacho", "mercado libre flex", "mercado libre full"];
+    const isML = mlValues.includes(pveLower);
+    const isFalabella = pveLower === "falabella";
+
+    if (isML || isFalabella) {
+      ventaNum = document.getElementById("exit-venta-num").value.trim();
+      const fieldName = isML ? "# Venta" : "Orden No.";
+      
+      if (!ventaNum) {
+        alert(`El campo ${fieldName} es obligatorio para el punto de venta seleccionado.`);
+        return;
+      }
+      const exists = State.salidas.some(s => s.ventaNum === ventaNum);
+      if (exists) {
+        alert(`No se puede guardar. El ${fieldName} ${ventaNum} ya ha sido registrado en otra salida (Venta duplicada).`);
+        return;
+      }
+    }
+
     const fileInput = document.getElementById("exit-carrier-guide-image");
     if (fileInput && fileInput.files && fileInput.files[0]) {
       const file = fileInput.files[0];
@@ -2243,7 +2284,7 @@ document.getElementById("form-stock-exit").addEventListener("submit", async (e) 
   const folioNum = getNextFolio(State.salidas);
   const id = `SAL-${folioNum}`;
 
-  State.salidas.push({ id, date, warehouse: whGlobal, pve, items: [...currentExitItems], client, carrier, carrierGuide, shippingCost, seller, channel, mastershop, facturaElectronica, ean, notes });
+  State.salidas.push({ id, date, warehouse: whGlobal, pve, items: [...currentExitItems], client, carrier, carrierGuide, shippingCost, seller, channel, mastershop, facturaElectronica, ean, notes, ventaNum });
   State.save();
   updateSummaryWidget();
   resetStockExitForm();
@@ -3850,6 +3891,7 @@ function getFilteredExportData(type) {
           "Cantidad": item.qty,
           "Valor Venta": "",
           "Punto de Venta": "",
+          "# Venta / Orden No.": "",
           "Cliente": "",
           "Vendedor": "",
           "Detalle / Observaciones": doc.notes
@@ -3871,6 +3913,7 @@ function getFilteredExportData(type) {
           "Cantidad": item.qty,
           "Valor Venta": formatCurrency(item.price),
           "Punto de Venta": doc.pve,
+          "# Venta / Orden No.": doc.ventaNum || "",
           "Cliente": doc.client,
           "Vendedor": doc.seller,
           "Detalle / Observaciones": doc.notes
@@ -4627,6 +4670,7 @@ function openDocumentDetailModal(id, type) {
         <div class="modal-detail-item"><span class="label">Fecha</span><span class="value">${doc.date}</span></div>
         <div class="modal-detail-item"><span class="label">Bodega Origen</span><span class="value">${doc.warehouse}</span></div>
         <div class="modal-detail-item"><span class="label">Punto de Venta</span><span class="value">${doc.pve}</span></div>
+        ${doc.ventaNum ? `<div class="modal-detail-item"><span class="label"># Venta / Orden No.</span><span class="value">${doc.ventaNum}</span></div>` : ''}
         <div class="modal-detail-item"><span class="label">Cliente</span><span class="value">${doc.client || 'Consumidor Final'}</span></div>
         <div class="modal-detail-item"><span class="label">Vendedor</span><span class="value">${doc.seller || '-'}</span></div>
         <div class="modal-detail-item"><span class="label">Canal</span><span class="value">${doc.channel || '-'}</span></div>
