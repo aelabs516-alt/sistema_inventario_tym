@@ -1878,14 +1878,27 @@
           <div class="card">
             <div class="card-header"><h5>Historial de Operaciones</h5></div>
             <div class="card-body">
-              <div class="search-bar-row" style="gap: 15px; position: sticky; top: 0; background: #fff; z-index: 20; padding-bottom: 10px; border-bottom: 1px solid #e2e8f0; margin-bottom: 15px;">
-                <div class="form-group flex-1">
+              <div class="search-bar-row" style="gap: 15px; position: sticky; top: 0; background: #fff; z-index: 20; padding-bottom: 10px; border-bottom: 1px solid #e2e8f0; margin-bottom: 15px; align-items: flex-end;">
+                <div class="form-group flex-1" style="margin-bottom: 0;">
+                  <label for="search-docs-product" style="font-size: 11px; font-weight: 600; color: #475569; margin-bottom: 4px;">Nombre de Producto</label>
                   <input type="text" id="search-docs-product" placeholder="Buscar por Nombre de Producto (Ej: Cable)">
                 </div>
-                <div class="form-group flex-1">
-                  <input type="text" id="search-docs-input" placeholder="Buscar por Folio, Bodega, Cliente (Nombre, Cédula, Contacto) o Observaciones...">
+                <div class="form-group flex-1" style="margin-bottom: 0;">
+                  <label for="search-docs-input" style="font-size: 11px; font-weight: 600; color: #475569; margin-bottom: 4px;">Folio, NIT / CC, Cliente o Teléfono</label>
+                  <input type="text" id="search-docs-input" placeholder="Buscar por Folio, NIT, Nombre, Teléfono...">
                 </div>
-                <div class="form-group">
+                <div class="form-group flex-1" style="margin-bottom: 0; position: relative;">
+                  <label style="font-size: 11px; font-weight: 600; color: #475569; margin-bottom: 4px;">Puntos de Venta</label>
+                  <button type="button" class="form-control" id="docs-pve-filter-btn" style="text-align: left; display: flex; justify-content: space-between; align-items: center; background: #fff; height: 38px;">
+                    <span id="docs-pve-filter-label" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Todos los PVE</span>
+                    <i data-lucide="chevron-down" style="width: 16px; height: 16px;"></i>
+                  </button>
+                  <div id="docs-pve-filter-menu" class="hidden" style="position: absolute; top: calc(100% + 4px); left: 0; width: 100%; background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px; max-height: 200px; overflow-y: auto; z-index: 50; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                    <!-- Generado dinámicamente -->
+                  </div>
+                </div>
+                <div class="form-group" style="margin-bottom: 0; min-width: 150px;">
+                  <label for="filter-docs-type" style="font-size: 11px; font-weight: 600; color: #475569; margin-bottom: 4px;">Tipo Documento</label>
                   <select id="filter-docs-type">
                     <option value="Todos">Todos los tipos</option>
                     <option value="Ingreso">Ingresos</option>

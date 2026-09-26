@@ -433,6 +433,7 @@ function showApp() {
   // Actualizar dashboard inicial
   updateSummaryWidget();
   initDashboardFilters();
+  initDocsPveFilter();
   renderDashboardCharts();
   
   // Iniciar timer de relojes
@@ -4081,6 +4082,68 @@ window.toggleDocsSort = function(col) {
   renderDocumentsHistory();
 };
 
+let activeDocsPves = [];
+
+function initDocsPveFilter() {
+  const btn = document.getElementById("docs-pve-filter-btn");
+  const menu = document.getElementById("docs-pve-filter-menu");
+  const lbl = document.getElementById("docs-pve-filter-label");
+  if (!btn || !menu) return;
+
+  // Poblar el menú con todos los PVE del State
+  let html = `<label style="display:flex; align-items:center; gap:8px; font-size:13px; margin-bottom:6px; cursor:pointer;"><input type="checkbox" id="docs-pve-all" checked> <b>Seleccionar Todos</b></label><hr style="margin: 6px 0;">`;
+  
+  State.pve.forEach(pv => {
+    html += `<label style="display:flex; align-items:center; gap:8px; font-size:13px; margin-bottom:4px; cursor:pointer;">
+               <input type="checkbox" class="docs-pve-check" value="${pv}" checked> ${pv}
+             </label>`;
+  });
+  menu.innerHTML = html;
+
+  // Toggle de la lista
+  btn.onclick = (e) => {
+    e.stopPropagation();
+    menu.classList.toggle("hidden");
+  };
+
+  // Cerrar al hacer clic afuera
+  document.addEventListener("click", (e) => {
+    if (!menu.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
+      menu.classList.add("hidden");
+    }
+  });
+
+  const allCheck = document.getElementById("docs-pve-all");
+  const checks = document.querySelectorAll(".docs-pve-check");
+
+  function updateActivePves() {
+    activeDocsPves = Array.from(checks).filter(c => c.checked).map(c => c.value);
+    allCheck.checked = activeDocsPves.length === checks.length;
+    
+    if (activeDocsPves.length === checks.length) {
+      lbl.textContent = "Todos los PVE";
+    } else if (activeDocsPves.length === 0) {
+      lbl.textContent = "Ninguno";
+    } else if (activeDocsPves.length === 1) {
+      lbl.textContent = activeDocsPves[0];
+    } else {
+      lbl.textContent = `${activeDocsPves.length} PVEs seleccionados`;
+    }
+    renderDocumentsHistory();
+  }
+
+  allCheck.onchange = (e) => {
+    const isChecked = e.target.checked;
+    checks.forEach(c => c.checked = isChecked);
+    updateActivePves();
+  };
+
+  checks.forEach(c => c.onchange = updateActivePves);
+  
+  // Inicializar array global silenciosamente sin gatillar render múltiple
+  activeDocsPves = State.pve.slice();
+}
+
 function renderDocumentsHistory() {
   const tbody = document.querySelector("#table-docs-history tbody");
   tbody.innerHTML = "";
@@ -4166,6 +4229,14 @@ function renderDocumentsHistory() {
     if (valA > valB) return docsSortOrder === 'asc' ? 1 : -1;
     return 0;
   });
+
+  // Aplicar filtro de PVE
+  if (activeDocsPves.length !== State.pve.length) {
+    allDocs = allDocs.filter(doc => {
+      if (doc.pve) return activeDocsPves.includes(doc.pve);
+      return true;
+    });
+  }
 
   // Aplicar búsqueda por SKU, Folio, Bodega, etc.
   const norm = str => str ? str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() : "";
