@@ -695,7 +695,7 @@ body.dark-mode .clock-card {
   border: 1px solid var(--border-color);
   box-shadow: var(--shadow-sm);
   margin-bottom: 24px;
-  overflow: hidden;
+  overflow: visible;
   transition: background-color var(--transition-normal), border-color var(--transition-normal);
 }
 
@@ -1916,3 +1916,4 @@ body.dark-mode input[type="file"]::file-selector-button:hover {
   border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(1, 140, 140, 0.15);
 }
+
