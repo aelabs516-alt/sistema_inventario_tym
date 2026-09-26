@@ -2838,6 +2838,21 @@
     </div>
   </div>
 
+  <div id="modal-custom-alert" class="modal-wrapper hidden" style="z-index: 10100;">
+    <div class="modal-card" style="max-width: 450px;">
+      <div class="modal-header">
+        <h4 style="display: flex; align-items: center; gap: 8px;"><i data-lucide="alert-triangle" style="color: var(--danger);"></i> Atención</h4>
+        <button class="modal-close-btn" onclick="document.getElementById('modal-custom-alert').classList.add('hidden')"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body">
+        <p id="modal-custom-alert-msg" style="font-size: 0.95rem; line-height: 1.5;"></p>
+      </div>
+      <div class="modal-footer" style="display: flex; justify-content: flex-end; margin-top: 15px;">
+        <button class="btn btn-primary" onclick="document.getElementById('modal-custom-alert').classList.add('hidden')">Aceptar</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Script Principal -->
   <script src="colombia_geodata.js"></script>
   <script src="app.js"></script>

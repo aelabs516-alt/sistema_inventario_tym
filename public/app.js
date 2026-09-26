@@ -1782,6 +1782,13 @@ function attachPhoneInputFormat(el) {
   });
 }
 
+function showCustomAlert(msg) {
+  const modal = document.getElementById("modal-custom-alert");
+  if (!modal) return alert(msg); // fallback
+  document.getElementById("modal-custom-alert-msg").textContent = msg;
+  modal.classList.remove("hidden");
+}
+
 function compressImageToBase64(file, maxWidth = 1000, maxHeight = 1000, quality = 0.82) {
   return new Promise((resolve, reject) => {
     if (!file.type.startsWith("image/")) {
@@ -2038,6 +2045,11 @@ document.getElementById("exit-pve").addEventListener("change", function() {
   }
 });
 
+// Remover espacios en número de venta / orden
+document.getElementById("exit-venta-num").addEventListener("input", function() {
+  this.value = this.value.replace(/\s+/g, '');
+});
+
 // Transportadora — mostrar campo libre si es "Otra"
 document.getElementById("exit-carrier").onchange = function() {
   const otherInput = document.getElementById("exit-carrier-other");
@@ -2254,12 +2266,12 @@ document.getElementById("form-stock-exit").addEventListener("submit", async (e) 
       const fieldName = isML ? "# Venta" : "Orden No.";
       
       if (!ventaNum) {
-        alert(`El campo ${fieldName} es obligatorio para el punto de venta seleccionado.`);
+        showCustomAlert(`El campo ${fieldName} es obligatorio para el punto de venta seleccionado.`);
         return;
       }
       const exists = State.salidas.some(s => s.ventaNum === ventaNum);
       if (exists) {
-        alert(`No se puede guardar. El ${fieldName} ${ventaNum} ya ha sido registrado en otra salida (Venta duplicada).`);
+        showCustomAlert(`No se puede guardar. El ${fieldName} ${ventaNum} ya ha sido registrado en otra salida (Venta duplicada).`);
         return;
       }
     }
