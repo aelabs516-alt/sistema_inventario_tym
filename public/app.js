@@ -4232,9 +4232,12 @@ function renderDocumentsHistory() {
 
   // Aplicar filtro de PVE
   if (activeDocsPves.length !== State.pve.length) {
+    const activeNorm = activeDocsPves.map(p => p.trim().toLowerCase());
     allDocs = allDocs.filter(doc => {
-      if (doc.pve) return activeDocsPves.includes(doc.pve);
-      return true;
+      if (doc.pve) {
+        return activeNorm.includes(doc.pve.trim().toLowerCase());
+      }
+      return false; // Ocultar documentos que no tienen PVE (ej. Ingresos, Traslados) cuando se filtra un PVE específico
     });
   }
 
