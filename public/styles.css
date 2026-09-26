@@ -1894,3 +1894,25 @@ body.dark-mode input[type="file"]::file-selector-button:hover {
 }
 
 
+.custom-dropdown-btn {
+  width: 100%;
+  padding: 10px 14px;
+  text-align: left;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: var(--bg-secondary);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-family);
+  font-size: 0.85rem;
+  cursor: pointer;
+  outline: none;
+  transition: var(--transition-fast);
+}
+
+.custom-dropdown-btn:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(1, 140, 140, 0.15);
+}
