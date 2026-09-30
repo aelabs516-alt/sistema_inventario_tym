@@ -6578,8 +6578,8 @@ const FIELD_COORDINATES = {
     celular: { left: "18.2%", top: "36.2%", width: "21.3%" },
     ciudad: { left: "55.4%", top: "36.2%", width: "38.7%" },
     direccion: { left: "20.9%", top: "43.3%", width: "72.8%" },
-    senderCiudad: { left: "5.4%", top: "57.3%", width: "25%", height: "4.5%" },
-    senderDir: { left: "51.5%", top: "57.1%", width: "31%", height: "4.5%" }
+    senderCiudad: { left: "5.4%", top: "57.6%", width: "24%", height: "3.3%" },
+    senderDir: { left: "51.5%", top: "57.4%", width: "29%", height: "3.3%" }
   },
   "ME": {
     nombre: { left: "14.5%", top: "28.5%", width: "79.0%" },
@@ -6587,8 +6587,8 @@ const FIELD_COORDINATES = {
     celular: { left: "51.1%", top: "35.5%", width: "42.0%" },
     ciudad: { left: "13.2%", top: "42.5%", width: "80.0%" },
     direccion: { left: "17.0%", top: "49.5%", width: "76.0%" },
-    senderCiudad: { left: "34.5%", top: "60.9%", width: "25%", height: "5%" },
-    senderDir: { left: "65.5%", top: "60.9%", width: "29%", height: "5%" }
+    senderCiudad: { left: "34.5%", top: "61.2%", width: "25%", height: "3.8%" },
+    senderDir: { left: "65.5%", top: "61.2%", width: "29%", height: "3.8%" }
   },
   "Energía Solar": {
     nombre: { left: "18.5%", top: "33.5%", width: "75.0%" },
@@ -6596,10 +6596,11 @@ const FIELD_COORDINATES = {
     celular: { left: "68.1%", top: "39.5%", width: "25.0%" },
     ciudad: { left: "16.2%", top: "44.5%", width: "75.0%" },
     direccion: { left: "20.0%", top: "49.5%", width: "70.0%" },
-    senderCiudad: { left: "34.5%", top: "65.6%", width: "25%", height: "5%" },
-    senderDir: { left: "65.5%", top: "65.6%", width: "29%", height: "5%" }
+    senderCiudad: { left: "34.5%", top: "66.0%", width: "25%", height: "3.8%" },
+    senderDir: { left: "65.5%", top: "66.0%", width: "29%", height: "3.8%" }
   }
 };
+
 
 
 function base64ToUint8Array(base64) {
