@@ -4601,8 +4601,8 @@ function openDocumentDetailModal(id, type) {
               <div style="font-size: 11px; line-height: 1.4;">
                 <div>NIT 901.818.992-1</div>
                 <div>CEL: (57) 3247772247</div>
-                <div>CRA 43A # 18SUR-174 Local 252</div>
-                <div>Medellín - Colombia</div>
+                <div>Calle 76 # 45A-9 Piso 4</div>
+                <div>Itagüí - Colombia</div>
               </div>
             </div>
             <div style="text-align: right;">
@@ -6577,23 +6577,30 @@ const FIELD_COORDINATES = {
     cc: { left: "69.1%", top: "29.2%", width: "25.0%" },
     celular: { left: "18.2%", top: "36.2%", width: "21.3%" },
     ciudad: { left: "55.4%", top: "36.2%", width: "38.7%" },
-    direccion: { left: "20.9%", top: "43.3%", width: "72.8%" }
+    direccion: { left: "20.9%", top: "43.3%", width: "72.8%" },
+    senderCiudad: { left: "5.4%", top: "57.3%", width: "25%", height: "4.5%" },
+    senderDir: { left: "51.5%", top: "57.1%", width: "31%", height: "4.5%" }
   },
   "ME": {
     nombre: { left: "14.5%", top: "28.5%", width: "79.0%" },
     cc: { left: "10.1%", top: "35.5%", width: "30.0%" },
     celular: { left: "51.1%", top: "35.5%", width: "42.0%" },
     ciudad: { left: "13.2%", top: "42.5%", width: "80.0%" },
-    direccion: { left: "17.0%", top: "49.5%", width: "76.0%" }
+    direccion: { left: "17.0%", top: "49.5%", width: "76.0%" },
+    senderCiudad: { left: "34.5%", top: "60.9%", width: "25%", height: "5%" },
+    senderDir: { left: "65.5%", top: "60.9%", width: "29%", height: "5%" }
   },
   "Energía Solar": {
     nombre: { left: "18.5%", top: "33.5%", width: "75.0%" },
     cc: { left: "10.1%", top: "39.5%", width: "35.0%" },
     celular: { left: "68.1%", top: "39.5%", width: "25.0%" },
     ciudad: { left: "16.2%", top: "44.5%", width: "75.0%" },
-    direccion: { left: "20.0%", top: "49.5%", width: "70.0%" }
+    direccion: { left: "20.0%", top: "49.5%", width: "70.0%" },
+    senderCiudad: { left: "34.5%", top: "65.6%", width: "25%", height: "5%" },
+    senderDir: { left: "65.5%", top: "65.6%", width: "29%", height: "5%" }
   }
 };
+
 
 function base64ToUint8Array(base64) {
   const raw = atob(base64);
@@ -6690,6 +6697,19 @@ function applyFieldCoordinates(type) {
       } else {
         el.style.lineHeight = "normal";
       }
+    }
+  });
+
+  const senderFields = ["senderCiudad", "senderDir"];
+  const senderFontSize = (wrapperWidth * 0.016) + "px";
+  senderFields.forEach(field => {
+    const el = document.getElementById(field === "senderCiudad" ? "rotulo-sender-ciudad" : "rotulo-sender-direccion");
+    if (el && coords[field]) {
+      el.style.left = coords[field].left;
+      el.style.top = coords[field].top;
+      el.style.width = coords[field].width;
+      el.style.height = coords[field].height;
+      el.style.fontSize = senderFontSize;
     }
   });
 }
@@ -8473,4 +8493,4 @@ function initInfoProductosModule() {
       renderTable();
     });
   }
-}
+}
