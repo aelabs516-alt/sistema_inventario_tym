@@ -6577,27 +6577,21 @@ const FIELD_COORDINATES = {
     cc: { left: "69.1%", top: "29.2%", width: "25.0%" },
     celular: { left: "18.2%", top: "36.2%", width: "21.3%" },
     ciudad: { left: "55.4%", top: "36.2%", width: "38.7%" },
-    direccion: { left: "20.9%", top: "43.3%", width: "72.8%" },
-    senderCiudad: { left: "4%", top: "57.3%", width: "45%", height: "3.8%" },
-    senderDir: { left: "51.5%", top: "57.3%", width: "46%", height: "3.8%" }
+    direccion: { left: "20.9%", top: "43.3%", width: "72.8%" }
   },
   "ME": {
     nombre: { left: "14.5%", top: "28.5%", width: "79.0%" },
     cc: { left: "10.1%", top: "35.5%", width: "30.0%" },
     celular: { left: "51.1%", top: "35.5%", width: "42.0%" },
     ciudad: { left: "13.2%", top: "42.5%", width: "80.0%" },
-    direccion: { left: "17.0%", top: "49.5%", width: "76.0%" },
-    senderCiudad: { left: "33%", top: "60.8%", width: "27%", height: "4.4%" },
-    senderDir: { left: "62%", top: "60.8%", width: "36%", height: "4.4%" }
+    direccion: { left: "17.0%", top: "49.5%", width: "76.0%" }
   },
   "Energía Solar": {
     nombre: { left: "18.5%", top: "33.5%", width: "75.0%" },
     cc: { left: "10.1%", top: "39.5%", width: "35.0%" },
     celular: { left: "68.1%", top: "39.5%", width: "25.0%" },
     ciudad: { left: "16.2%", top: "44.5%", width: "75.0%" },
-    direccion: { left: "20.0%", top: "49.5%", width: "70.0%" },
-    senderCiudad: { left: "33%", top: "65.6%", width: "27%", height: "4.4%" },
-    senderDir: { left: "62%", top: "65.6%", width: "36%", height: "4.4%" }
+    direccion: { left: "20.0%", top: "49.5%", width: "70.0%" }
   }
 };
 
@@ -6699,19 +6693,6 @@ function applyFieldCoordinates(type) {
       } else {
         el.style.lineHeight = "normal";
       }
-    }
-  });
-
-  const senderFields = ["senderCiudad", "senderDir"];
-  const senderFontSize = (wrapperWidth * 0.018) + "px";
-  senderFields.forEach(field => {
-    const el = document.getElementById(field === "senderCiudad" ? "rotulo-sender-ciudad" : "rotulo-sender-direccion");
-    if (el && coords[field]) {
-      el.style.left = coords[field].left;
-      el.style.top = coords[field].top;
-      el.style.width = coords[field].width;
-      el.style.height = coords[field].height;
-      el.style.fontSize = senderFontSize;
     }
   });
 }
