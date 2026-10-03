@@ -645,7 +645,7 @@ function initModules() {
         deletePhotoBtn.classList.remove("hidden");
       } catch (err) {
         console.error("Error al procesar foto del producto:", err);
-        alert("❌ Error al procesar la foto del producto: " + err.message);
+        showCustomAlert("❌ Error al procesar la foto del producto: " + err.message);
       }
     }
   };
@@ -683,7 +683,7 @@ function initModules() {
     
     const sku = document.getElementById("prod-sku").value.trim().toUpperCase();
     if (!sku) {
-      alert("El SKU es obligatorio.");
+      showCustomAlert("El SKU es obligatorio.");
       return;
     }
     
@@ -702,7 +702,7 @@ function initModules() {
     // Verificar edición vs creación
     if (editingProductSku) {
       if (sku !== editingProductSku && State.products.some(p => p.sku === sku)) {
-        alert("El nuevo SKU ingresado ya pertenece a otro producto. No se permiten duplicados.");
+        showCustomAlert("El nuevo SKU ingresado ya pertenece a otro producto. No se permiten duplicados.");
         isSubmittingProduct = false;
         if (submitBtn) submitBtn.disabled = false;
         return;
@@ -714,7 +714,7 @@ function initModules() {
       editingProductSku = null; // Limpiar estado de edición
     } else {
       if (State.products.some(p => p.sku === sku)) {
-        alert("El SKU ya existe. No se puede crear un producto duplicado.");
+        showCustomAlert("El SKU ya existe. No se puede crear un producto duplicado.");
         isSubmittingProduct = false;
         if (submitBtn) submitBtn.disabled = false;
         return;
@@ -734,7 +734,7 @@ function initModules() {
     pCbmDisp.value = "0.000000 m³";
     
     // Alerta bloqueante
-    alert("Producto guardado correctamente.");
+    showCustomAlert("Producto guardado correctamente.");
     
     // Anti-rebote: Liberar el botón y la bandera 500ms después
     // de que el usuario cierre la alerta, para descartar clics encolados.
@@ -773,7 +773,7 @@ function initModules() {
     if (editName) {
       // Editar
       if (cName !== editName && State.carriers.includes(cName)) {
-        alert("Esta transportadora ya se encuentra registrada.");
+        showCustomAlert("Esta transportadora ya se encuentra registrada.");
         return;
       }
       const idx = State.carriers.indexOf(editName);
@@ -787,16 +787,16 @@ function initModules() {
           }
         });
         
-        alert("Transportadora actualizada con éxito.");
+        showCustomAlert("Transportadora actualizada con éxito.");
       }
     } else {
       // Registrar nueva
       if (State.carriers.includes(cName)) {
-        alert("Esta transportadora ya se encuentra registrada.");
+        showCustomAlert("Esta transportadora ya se encuentra registrada.");
         return;
       }
       State.carriers.push(cName);
-      alert("Transportadora registrada correctamente.");
+      showCustomAlert("Transportadora registrada correctamente.");
     }
 
     State.save();
@@ -821,7 +821,7 @@ function initModules() {
     if (editName) {
       // Editar
       if (name !== editName && State.pve.includes(name)) {
-        alert("Este punto de venta ya se encuentra registrado.");
+        showCustomAlert("Este punto de venta ya se encuentra registrado.");
         return;
       }
       const idx = State.pve.indexOf(editName);
@@ -835,16 +835,16 @@ function initModules() {
           }
         });
         
-        alert("Punto de venta actualizado con éxito.");
+        showCustomAlert("Punto de venta actualizado con éxito.");
       }
     } else {
       // Registrar nuevo
       if (State.pve.includes(name)) {
-        alert("Este punto de venta ya se encuentra registrado.");
+        showCustomAlert("Este punto de venta ya se encuentra registrado.");
         return;
       }
       State.pve.push(name);
-      alert("Punto de venta registrado correctamente.");
+      showCustomAlert("Punto de venta registrado correctamente.");
     }
 
     State.save();
@@ -890,7 +890,7 @@ function initModules() {
     State.backup.time = document.getElementById("backup-time").value;
     State.backup.emails = document.getElementById("backup-emails").value.trim();
     State.save();
-    alert("✅ Configuración de backup guardada.");
+    showCustomAlert("✅ Configuración de backup guardada.");
   });
 
   // Ejecutar backup manual ahora
@@ -899,7 +899,7 @@ function initModules() {
     const emails = document.getElementById("backup-emails").value.trim();
 
     if (!emails) {
-      alert("Por favor configure al menos un correo electrónico.");
+      showCustomAlert("Por favor configure al menos un correo electrónico.");
       return;
     }
 
@@ -919,7 +919,7 @@ function initModules() {
 
     renderBackupsTable();
     downloadSystemBackup(filename);
-    alert("✅ Backup manual ejecutado con éxito. Se ha descargado el archivo JSON y simulado el envío a los destinatarios.");
+    showCustomAlert("✅ Backup manual ejecutado con éxito. Se ha descargado el archivo JSON y simulado el envío a los destinatarios.");
   };
 
   // Restaurar Backup Manual
@@ -927,8 +927,8 @@ function initModules() {
   const fileRestoreBackup = document.getElementById("file-restore-backup");
   
   if (btnRestoreBackup && fileRestoreBackup) {
-    btnRestoreBackup.addEventListener("click", () => {
-      if (confirm("⚠️ ADVERTENCIA CRÍTICA: Restaurar un backup sobrescribirá TODA la base de datos actual y eliminará cualquier información ingresada posteriormente a la fecha del backup. ¿Estás absolutamente seguro de continuar?")) {
+    btnRestoreBackup.addEventListener("click", async () => {
+      if (await showCustomConfirm("⚠️ ADVERTENCIA CRÍTICA: Restaurar un backup sobrescribirá TODA la base de datos actual y eliminará cualquier información ingresada posteriormente a la fecha del backup. ¿Estás absolutamente seguro de continuar?")) {
         fileRestoreBackup.click();
       }
     });
@@ -944,7 +944,7 @@ function initModules() {
           
           // Validación básica de que es un backup válido del sistema
           if (!restoredData.users || !restoredData.products || !restoredData.warehouses) {
-            alert("❌ El archivo seleccionado no parece ser un backup válido del sistema Inventario 360°.");
+            showCustomAlert("❌ El archivo seleccionado no parece ser un backup válido del sistema Inventario 360°.");
             return;
           }
 
@@ -954,12 +954,12 @@ function initModules() {
           // Enviar al servidor para forzar el borrado y reescritura en base de datos
           State.save();
           
-          alert("✅ Backup restaurado exitosamente en la base de datos. El sistema se reiniciará para aplicar los cambios.");
+          showCustomAlert("✅ Backup restaurado exitosamente en la base de datos. El sistema se reiniciará para aplicar los cambios.");
           window.location.reload();
           
         } catch (error) {
           console.error("Error procesando archivo de backup:", error);
-          alert("❌ Error al procesar el archivo JSON. Verifique que el archivo no esté corrupto.");
+          showCustomAlert("❌ Error al procesar el archivo JSON. Verifique que el archivo no esté corrupto.");
         }
       };
       reader.readAsText(file);
@@ -986,7 +986,7 @@ function initModules() {
         btnDeleteUPhoto.classList.remove("hidden");
       } catch (err) {
         console.error("Error al procesar foto del usuario:", err);
-        alert("❌ Error al procesar la foto del usuario: " + err.message);
+        showCustomAlert("❌ Error al procesar la foto del usuario: " + err.message);
       }
     }
   };
@@ -1011,7 +1011,7 @@ function initModules() {
     
     const email = document.getElementById("user-email").value.trim().toLowerCase();
     if (!email) {
-      alert("El correo electrónico es obligatorio.");
+      showCustomAlert("El correo electrónico es obligatorio.");
       return;
     }
     
@@ -1036,7 +1036,7 @@ function initModules() {
       if (email !== editEmail) {
         const existUser = State.users.find(u => u.email === email);
         if (existUser) {
-          alert("El nuevo correo electrónico ya se encuentra registrado por otro usuario.");
+          showCustomAlert("El nuevo correo electrónico ya se encuentra registrado por otro usuario.");
           return;
         }
       }
@@ -1057,16 +1057,16 @@ function initModules() {
           State.activeUser = user;
         }
         
-        alert("Usuario actualizado con éxito.");
+        showCustomAlert("Usuario actualizado con éxito.");
       }
     } else {
       // Registrar nuevo
       if (State.users.some(u => u.email === email || (username && u.username === username))) {
-        alert("Ya existe un usuario con este correo electrónico o nombre de usuario.");
+        showCustomAlert("Ya existe un usuario con este correo electrónico o nombre de usuario.");
         return;
       }
       State.users.push({ email, username, name, password, role, perms, photo: userPhotoBase64 });
-      alert("Usuario creado correctamente.");
+      showCustomAlert("Usuario creado correctamente.");
     }
 
     State.save();
@@ -1116,7 +1116,7 @@ function initModules() {
 
     if (editingSellerName) {
       if (name !== editingSellerName && State.sellers.some(s => s.name === name)) {
-        alert("El nuevo nombre ingresado ya pertenece a otro vendedor. No se permiten duplicados.");
+        showCustomAlert("El nuevo nombre ingresado ya pertenece a otro vendedor. No se permiten duplicados.");
         return;
       }
       const existIndex = State.sellers.findIndex(s => s.name === editingSellerName);
@@ -1126,7 +1126,7 @@ function initModules() {
       editingSellerName = null;
     } else {
       if (State.sellers.some(s => s.name === name)) {
-        alert("El vendedor ya existe. No se puede crear duplicado.");
+        showCustomAlert("El vendedor ya existe. No se puede crear duplicado.");
         return;
       }
       State.sellers.push({ name, goal, active });
@@ -1137,7 +1137,7 @@ function initModules() {
     e.target.reset();
     sellerStatusToggle.checked = true;
     sellerStatusLabel.textContent = "Activo";
-    alert("Vendedor registrado correctamente.");
+    showCustomAlert("Vendedor registrado correctamente.");
   });
 
   // Switch Global de Modo Oscuro
@@ -1211,7 +1211,7 @@ function renderProductsList(searchQuery = "") {
 
   // Listeners de edición/eliminación
   document.querySelectorAll(".btn-edit-p").forEach(btn => {
-    btn.onclick = function() {
+    btn.onclick = async function() {
       const sku = this.getAttribute("data-sku");
       const p = State.products.find(prod => prod.sku === sku);
       if (p) {
@@ -1239,9 +1239,9 @@ function renderProductsList(searchQuery = "") {
   });
 
   document.querySelectorAll(".btn-del-p").forEach(btn => {
-    btn.onclick = function() {
+    btn.onclick = async function() {
       const sku = this.getAttribute("data-sku");
-      if (confirm(`¿Está seguro de eliminar el producto con SKU: ${sku}?`)) {
+      if (await showCustomConfirm(`¿Está seguro de eliminar el producto con SKU: ${sku}?`)) {
         State.products = State.products.filter(p => p.sku !== sku);
         State.save();
         updateSummaryWidget();
@@ -1270,7 +1270,7 @@ function renderWarehouseList() {
   });
 
   document.querySelectorAll(".btn-del-wh").forEach(btn => {
-    btn.onclick = function() {
+    btn.onclick = async function() {
       const name = this.getAttribute("data-name");
       
       // Validar si la bodega tiene stock activo de algún producto
@@ -1284,11 +1284,11 @@ function renderWarehouseList() {
       }
       
       if (hasActiveStock) {
-        alert(`❌ No se puede eliminar la bodega "${name}" porque contiene productos con stock activo. Traslade los productos a otra bodega antes de proceder.`);
+        showCustomAlert(`❌ No se puede eliminar la bodega "${name}" porque contiene productos con stock activo. Traslade los productos a otra bodega antes de proceder.`);
         return;
       }
 
-      if (confirm(`¿Eliminar bodega "${name}"? Esto afectará el stock reportado en ella.`)) {
+      if (await showCustomConfirm(`¿Eliminar bodega "${name}"? Esto afectará el stock reportado en ella.`)) {
         State.warehouses = State.warehouses.filter(w => w !== name);
         State.save();
         updateSummaryWidget();
@@ -1298,13 +1298,13 @@ function renderWarehouseList() {
   });
 
   document.querySelectorAll(".btn-edit-wh").forEach(btn => {
-    btn.onclick = function() {
+    btn.onclick = async function() {
       const oldName = this.getAttribute("data-name");
       const newName = prompt(`Editar nombre para la bodega "${oldName}":`, oldName);
       if (newName && newName.trim() !== "" && newName !== oldName) {
         const cleanNewName = newName.trim().toUpperCase();
         if (State.warehouses.includes(cleanNewName)) {
-          alert("Esa bodega ya existe.");
+          showCustomAlert("Esa bodega ya existe.");
           return;
         }
 
@@ -1321,7 +1321,7 @@ function renderWarehouseList() {
         });
 
         State.save();
-        alert(`✅ Bodega renombrada a "${cleanNewName}". Las transacciones asociadas han sido actualizadas.`);
+        showCustomAlert(`✅ Bodega renombrada a "${cleanNewName}". Las transacciones asociadas han sido actualizadas.`);
         updateSummaryWidget();
         renderWarehouseList();
       }
@@ -1348,7 +1348,7 @@ function renderPveList() {
   });
 
   document.querySelectorAll(".btn-edit-pve").forEach(btn => {
-    btn.onclick = function() {
+    btn.onclick = async function() {
       const name = this.getAttribute("data-name");
       document.getElementById("pve-edit-name").value = name;
       document.getElementById("pve-name").value = name;
@@ -1360,9 +1360,9 @@ function renderPveList() {
   });
 
   document.querySelectorAll(".btn-del-pve").forEach(btn => {
-    btn.onclick = function() {
+    btn.onclick = async function() {
       const name = this.getAttribute("data-name");
-      if (confirm(`¿Eliminar punto de venta "${name}"?`)) {
+      if (await showCustomConfirm(`¿Eliminar punto de venta "${name}"?`)) {
         State.pve = State.pve.filter(item => item !== name);
         State.save();
         renderPveList();
@@ -1392,7 +1392,7 @@ function renderCarriersList() {
   });
 
   document.querySelectorAll(".btn-edit-car").forEach(btn => {
-    btn.onclick = function() {
+    btn.onclick = async function() {
       const name = this.getAttribute("data-name");
       const c = State.carriers.find(carrier => carrier === name);
       if (c) {
@@ -1406,9 +1406,9 @@ function renderCarriersList() {
   });
 
   document.querySelectorAll(".btn-del-car").forEach(btn => {
-    btn.onclick = function() {
+    btn.onclick = async function() {
       const name = this.getAttribute("data-name");
-      if (confirm(`¿Eliminar transportadora "${name}"?`)) {
+      if (await showCustomConfirm(`¿Eliminar transportadora "${name}"?`)) {
         State.carriers = State.carriers.filter(c => c !== name);
         State.save();
         renderCarriersList();
@@ -1440,7 +1440,7 @@ function renderUsersList() {
   });
 
   document.querySelectorAll(".btn-edit-user").forEach(btn => {
-    btn.onclick = function() {
+    btn.onclick = async function() {
       const email = this.getAttribute("data-email");
       const u = State.users.find(user => user.email === email);
       if (u) {
@@ -1491,9 +1491,9 @@ function renderUsersList() {
   });
 
   document.querySelectorAll(".btn-del-user").forEach(btn => {
-    btn.onclick = function() {
+    btn.onclick = async function() {
       const email = this.getAttribute("data-email");
-      if (confirm(`¿Está seguro de eliminar al usuario ${email}?`)) {
+      if (await showCustomConfirm(`¿Está seguro de eliminar al usuario ${email}?`)) {
         State.users = State.users.filter(u => u.email !== email);
         if (State.activeUser && State.activeUser.email.toLowerCase() === email.toLowerCase()) {
           document.getElementById("logout-btn").click();
@@ -1529,7 +1529,7 @@ function renderSellersList() {
   });
 
   document.querySelectorAll(".btn-toggle-sel").forEach(btn => {
-    btn.onclick = function() {
+    btn.onclick = async function() {
       const name = this.getAttribute("data-name");
       const sel = State.sellers.find(s => s.name === name);
       if (sel) {
@@ -1541,7 +1541,7 @@ function renderSellersList() {
   });
 
   document.querySelectorAll(".btn-edit-sel").forEach(btn => {
-    btn.onclick = function() {
+    btn.onclick = async function() {
       const name = this.getAttribute("data-name");
       const sel = State.sellers.find(s => s.name === name);
       if (sel) {
@@ -1556,9 +1556,9 @@ function renderSellersList() {
   });
 
   document.querySelectorAll(".btn-del-sel").forEach(btn => {
-    btn.onclick = function() {
+    btn.onclick = async function() {
       const name = this.getAttribute("data-name");
-      if (confirm(`¿Eliminar al vendedor(a) ${name}?`)) {
+      if (await showCustomConfirm(`¿Eliminar al vendedor(a) ${name}?`)) {
         State.sellers = State.sellers.filter(s => s.name !== name);
         State.save();
         renderSellersList();
@@ -1623,11 +1623,11 @@ document.getElementById("btn-add-entry-item").onclick = function() {
   const qty = parseInt(document.getElementById("entry-product-qty").value) || 0;
 
   if (!sku) {
-    alert("Por favor seleccione un producto.");
+    showCustomAlert("Por favor seleccione un producto.");
     return;
   }
   if (qty <= 0) {
-    alert("Ingrese una cantidad válida mayor a 0.");
+    showCustomAlert("Ingrese una cantidad válida mayor a 0.");
     return;
   }
 
@@ -1682,7 +1682,7 @@ function renderEntryItemsTable() {
   });
 
   document.querySelectorAll(".btn-del-entry-item").forEach(btn => {
-    btn.onclick = function() {
+    btn.onclick = async function() {
       const idx = parseInt(this.getAttribute("data-index"));
       currentEntryItems.splice(idx, 1);
       renderEntryItemsTable();
@@ -1695,7 +1695,7 @@ function renderEntryItemsTable() {
 document.getElementById("form-stock-entry").addEventListener("submit", (e) => {
   e.preventDefault();
   if (currentEntryItems.length === 0) {
-    alert("Debe agregar al menos un producto a la lista de ingresos.");
+    showCustomAlert("Debe agregar al menos un producto a la lista de ingresos.");
     return;
   }
 
@@ -1713,7 +1713,7 @@ document.getElementById("form-stock-entry").addEventListener("submit", (e) => {
   State.save();
   updateSummaryWidget();
   resetStockEntryForm();
-  alert(`Documento de Ingreso ${id} procesado con éxito.`);
+  showCustomAlert(`Documento de Ingreso ${id} procesado con éxito.`);
 });
 
 
@@ -1785,7 +1785,7 @@ function attachPhoneInputFormat(el) {
 
 function showCustomAlert(msg) {
   const modal = document.getElementById("modal-custom-alert");
-  if (!modal) return alert(msg); // fallback
+  if (!modal) return showCustomAlert(msg); // fallback
   document.getElementById("modal-custom-alert-msg").textContent = msg;
   modal.classList.remove("hidden");
 }
@@ -2070,9 +2070,9 @@ document.getElementById("btn-add-exit-item").onclick = function() {
   const price = parsePriceInput(document.getElementById("exit-product-price").value);
   const globalWh = document.getElementById("exit-warehouse-global").value;
 
-  if (!sku) { alert("Seleccione un producto."); return; }
-  if (qty <= 0) { alert("Ingrese una cantidad mayor a 0."); return; }
-  if (!globalWh) { alert("Seleccione una Bodega Origen."); return; }
+  if (!sku) { showCustomAlert("Seleccione un producto."); return; }
+  if (qty <= 0) { showCustomAlert("Ingrese una cantidad mayor a 0."); return; }
+  if (!globalWh) { showCustomAlert("Seleccione una Bodega Origen."); return; }
 
   const p = State.products.find(prod => prod.sku === sku);
   if (!p) return;
@@ -2084,7 +2084,7 @@ document.getElementById("btn-add-exit-item").onclick = function() {
     .reduce((sum, item) => sum + item.qty, 0);
 
   if (qty + alreadyAdded > available) {
-    alert(`Stock insuficiente en "${globalWh}". Disponible: ${available} uds, ya añadido: ${alreadyAdded} uds.`);
+    showCustomAlert(`Stock insuficiente en "${globalWh}". Disponible: ${available} uds, ya añadido: ${alreadyAdded} uds.`);
     return;
   }
 
@@ -2210,7 +2210,7 @@ function renderExitItemsTable() {
   });
 
   document.querySelectorAll(".btn-del-exit-item").forEach(btn => {
-    btn.onclick = function() {
+    btn.onclick = async function() {
       const idx = parseInt(this.getAttribute("data-index"));
       currentExitItems.splice(idx, 1);
       if (!currentExitItems.some(item => item.category === "ME" || item.category === "Accesorios ME" || item.category === "T&M")) {
@@ -2225,7 +2225,7 @@ function renderExitItemsTable() {
 // Submit Procesar Salida
 document.getElementById("form-stock-exit").addEventListener("submit", async (e) => {
   e.preventDefault();
-  if (currentExitItems.length === 0) { alert("Agregue al menos un producto."); return; }
+  if (currentExitItems.length === 0) { showCustomAlert("Agregue al menos un producto."); return; }
 
   const date = document.getElementById("exit-date").value;
   const pve = document.getElementById("exit-pve").value;
@@ -2242,7 +2242,7 @@ document.getElementById("form-stock-exit").addEventListener("submit", async (e) 
     const clContacto = document.getElementById("exit-client-contacto").value.trim();
     
     if (!clNombre || !clCedula || !clContacto) {
-      alert("Para esta categoría los datos del cliente son requeridos (Nombre, Cédula y Contacto).");
+      showCustomAlert("Para esta categoría los datos del cliente son requeridos (Nombre, Cédula y Contacto).");
       return;
     }
     client = `Nombre: ${clNombre} | Cédula: ${clCedula} | Contacto: ${clContacto}`;
@@ -2281,14 +2281,14 @@ document.getElementById("form-stock-exit").addEventListener("submit", async (e) 
     if (fileInput && fileInput.files && fileInput.files[0]) {
       const file = fileInput.files[0];
       if (file.size > 10 * 1024 * 1024) {
-        alert("La imagen de la guía transportadora no puede superar los 10 MB.");
+        showCustomAlert("La imagen de la guía transportadora no puede superar los 10 MB.");
         return;
       }
       try {
         carrierGuide = await compressImageToBase64(file);
       } catch (error) {
         console.error("Error al procesar la imagen de la guía:", error);
-        alert("Error al procesar la imagen de la guía transportadora.");
+        showCustomAlert("Error al procesar la imagen de la guía transportadora.");
         return;
       }
     }
@@ -2301,7 +2301,7 @@ document.getElementById("form-stock-exit").addEventListener("submit", async (e) 
   State.save();
   updateSummaryWidget();
   resetStockExitForm();
-  alert(`✅ Salida ${id} procesada con éxito.`);
+  showCustomAlert(`✅ Salida ${id} procesada con éxito.`);
 });
 
 document.getElementById("btn-mastershop-toggle").addEventListener("click", function() {
@@ -2408,15 +2408,15 @@ document.getElementById("btn-add-transfer-item").onclick = function() {
   const orig = document.getElementById("transfer-origin-wh").value;
 
   if (!orig) {
-    alert("Por favor seleccione primero la bodega de origen.");
+    showCustomAlert("Por favor seleccione primero la bodega de origen.");
     return;
   }
   if (!sku) {
-    alert("Por favor seleccione un producto.");
+    showCustomAlert("Por favor seleccione un producto.");
     return;
   }
   if (qty <= 0) {
-    alert("Ingrese una cantidad válida.");
+    showCustomAlert("Ingrese una cantidad válida.");
     return;
   }
 
@@ -2431,7 +2431,7 @@ document.getElementById("btn-add-transfer-item").onclick = function() {
       .reduce((sum, item) => sum + item.qty, 0);
 
     if (qty + alreadyAdded > available) {
-      alert(`Stock insuficiente en bodega origen "${orig}". Disponible: ${available} uds.`);
+      showCustomAlert(`Stock insuficiente en bodega origen "${orig}". Disponible: ${available} uds.`);
       return;
     }
 
@@ -2479,7 +2479,7 @@ function renderTransferItemsTable() {
   });
 
   document.querySelectorAll(".btn-del-transfer-item").forEach(btn => {
-    btn.onclick = function() {
+    btn.onclick = async function() {
       const idx = parseInt(this.getAttribute("data-index"));
       currentTransferItems.splice(idx, 1);
       renderTransferItemsTable();
@@ -2492,7 +2492,7 @@ function renderTransferItemsTable() {
 document.getElementById("form-stock-transfer").addEventListener("submit", (e) => {
   e.preventDefault();
   if (currentTransferItems.length === 0) {
-    alert("Agregue al menos un producto a trasladar.");
+    showCustomAlert("Agregue al menos un producto a trasladar.");
     return;
   }
 
@@ -2502,7 +2502,7 @@ document.getElementById("form-stock-transfer").addEventListener("submit", (e) =>
   const editId = document.getElementById("transfer-edit-id").value;
 
   if (origin === dest) {
-    alert("Las bodegas de origen y destino deben ser diferentes.");
+    showCustomAlert("Las bodegas de origen y destino deben ser diferentes.");
     return;
   }
 
@@ -2511,14 +2511,14 @@ document.getElementById("form-stock-transfer").addEventListener("submit", (e) =>
     const index = State.traslados.findIndex(t => t.id === editId);
     if (index > -1) {
       State.traslados[index] = { id: editId, date, originWarehouse: origin, destWarehouse: dest, items: [...currentTransferItems] };
-      alert(`Traslado ${editId} modificado con éxito.`);
+      showCustomAlert(`Traslado ${editId} modificado con éxito.`);
     }
   } else {
     // Creación normal
     const folioNum = getNextFolio(State.traslados);
     const id = `TRA-${folioNum}`;
     State.traslados.push({ id, date, originWarehouse: origin, destWarehouse: dest, items: [...currentTransferItems] });
-    alert(`Documento de Traslado ${id} creado con éxito.`);
+    showCustomAlert(`Documento de Traslado ${id} creado con éxito.`);
   }
 
   State.save();
@@ -2588,7 +2588,7 @@ function renderSimulationTable() {
   });
 
   document.querySelectorAll(".btn-del-sim-item").forEach(btn => {
-    btn.onclick = function() {
+    btn.onclick = async function() {
       const idx = parseInt(this.getAttribute("data-index"));
       currentSimItems.splice(idx, 1);
       renderSimulationTable();
@@ -2605,11 +2605,11 @@ document.getElementById("btn-add-sim-item").onclick = function() {
   const qty = parseInt(document.getElementById("sim-product-qty").value) || 0;
 
   if (!sku) {
-    alert("Por favor seleccione un producto.");
+    showCustomAlert("Por favor seleccione un producto.");
     return;
   }
   if (qty <= 0) {
-    alert("Ingrese una cantidad válida mayor a 0.");
+    showCustomAlert("Ingrese una cantidad válida mayor a 0.");
     return;
   }
 
@@ -2703,7 +2703,7 @@ document.getElementById("btn-clear-sim").onclick = function() {
 // Botón Guardar simulación
 document.getElementById("btn-save-sim").onclick = function() {
   if (currentSimItems.length === 0) {
-    alert("Simulación vacía. Agregue productos antes de guardar.");
+    showCustomAlert("Simulación vacía. Agregue productos antes de guardar.");
     return;
   }
 
@@ -2731,13 +2731,13 @@ document.getElementById("btn-save-sim").onclick = function() {
 
   State.save();
   renderSavedSimulationsList();
-  alert(`Simulación ${simId} guardada con éxito.`);
+  showCustomAlert(`Simulación ${simId} guardada con éxito.`);
 };
 
 // Botón Exportar a PDF
 document.getElementById("btn-export-sim-pdf").onclick = function() {
   if (currentSimItems.length === 0) {
-    alert("Simulación vacía. Agregue productos antes de exportar.");
+    showCustomAlert("Simulación vacía. Agregue productos antes de exportar.");
     return;
   }
 
@@ -2844,21 +2844,21 @@ function renderSavedSimulationsList() {
   });
 
   document.querySelectorAll(".btn-load-sim").forEach(btn => {
-    btn.onclick = function() {
+    btn.onclick = async function() {
       const id = this.getAttribute("data-id");
       const sim = State.simulations.find(s => s.id === id);
       if (sim) {
         currentSimItems = [...sim.items];
         renderSimulationTable();
-        alert(`Cargada la simulación ${id}`);
+        showCustomAlert(`Cargada la simulación ${id}`);
       }
     };
   });
 
   document.querySelectorAll(".btn-del-sim").forEach(btn => {
-    btn.onclick = function() {
+    btn.onclick = async function() {
       const id = this.getAttribute("data-id");
-      if (confirm(`¿Eliminar la simulación ${id}?`)) {
+      if (await showCustomConfirm(`¿Eliminar la simulación ${id}?`)) {
         State.simulations = State.simulations.filter(s => s.id !== id);
         State.save();
         renderSavedSimulationsList();
@@ -3695,7 +3695,7 @@ document.getElementById("form-import-general-xls").addEventListener("submit", (e
   const file = fileInput.files[0];
 
   if (!file) {
-    alert("Seleccione un archivo.");
+    showCustomAlert("Seleccione un archivo.");
     return;
   }
 
@@ -3732,7 +3732,7 @@ document.getElementById("form-import-general-xls").addEventListener("submit", (e
           const p = State.products.find(prod => prod.sku === sku);
           if (p) {
             if (p.category === "ME" && serialsList.length !== qty) {
-              alert(`❌ Error en fila ${i + 2} (SKU ${sku}): La cantidad de ingresos es ${qty} pero se ingresaron ${serialsList.length} seriales.`);
+              showCustomAlert(`❌ Error en fila ${i + 2} (SKU ${sku}): La cantidad de ingresos es ${qty} pero se ingresaron ${serialsList.length} seriales.`);
               hasError = true;
               break;
             }
@@ -3785,7 +3785,7 @@ document.getElementById("form-import-general-xls").addEventListener("submit", (e
           const p = State.products.find(prod => prod.sku === sku);
           if (p) {
             if (p.category === "ME" && serialsList.length !== qty) {
-              alert(`❌ Error en fila ${i + 2} (SKU ${sku}): La cantidad de egresos es ${qty} pero se ingresaron ${serialsList.length} seriales.`);
+              showCustomAlert(`❌ Error en fila ${i + 2} (SKU ${sku}): La cantidad de egresos es ${qty} pero se ingresaron ${serialsList.length} seriales.`);
               hasError = true;
               break;
             }
@@ -3793,7 +3793,7 @@ document.getElementById("form-import-general-xls").addEventListener("submit", (e
               const availableSerials = getAvailableSerials(p.sku, wh);
               const missing = serialsList.filter(s => !availableSerials.includes(s));
               if (missing.length > 0) {
-                alert(`❌ Error en fila ${i + 2} (SKU ${sku}): Los seriales (${missing.join(", ")}) no están disponibles en la bodega ${wh}.`);
+                showCustomAlert(`❌ Error en fila ${i + 2} (SKU ${sku}): Los seriales (${missing.join(", ")}) no están disponibles en la bodega ${wh}.`);
                 hasError = true;
                 break;
               }
@@ -3833,9 +3833,9 @@ document.getElementById("form-import-general-xls").addEventListener("submit", (e
       State.save();
       updateSummaryWidget();
       fileInput.value = "";
-      alert(`Importación masiva completada. ${successCount} registros de fila procesados.`);
+      showCustomAlert(`Importación masiva completada. ${successCount} registros de fila procesados.`);
     } else {
-      alert("No se encontraron registros de fila válidos.");
+      showCustomAlert("No se encontraron registros de fila válidos.");
     }
   };
   reader.readAsArrayBuffer(file);
@@ -4005,7 +4005,7 @@ document.getElementById("btn-export-csv").onclick = function() {
   const type = document.getElementById("export-report-type").value;
   const data = getFilteredExportData(type);
   if (data.length === 0) {
-    alert("No hay datos filtrados disponibles para exportar.");
+    showCustomAlert("No hay datos filtrados disponibles para exportar.");
     return;
   }
 
@@ -4024,7 +4024,7 @@ document.getElementById("btn-export-xls").onclick = function() {
   const type = document.getElementById("export-report-type").value;
   const data = getFilteredExportData(type);
   if (data.length === 0) {
-    alert("No hay datos para exportar.");
+    showCustomAlert("No hay datos para exportar.");
     return;
   }
 
@@ -4040,7 +4040,7 @@ document.getElementById("btn-export-xlsx").onclick = function() {
   const type = document.getElementById("export-report-type").value;
   const data = getFilteredExportData(type);
   if (data.length === 0) {
-    alert("No hay datos.");
+    showCustomAlert("No hay datos.");
     return;
   }
 
@@ -4406,7 +4406,7 @@ function renderDocumentsHistory() {
 
   // Listeners
   document.querySelectorAll(".btn-view-doc").forEach(btn => {
-    btn.onclick = function() {
+    btn.onclick = async function() {
       const id = this.getAttribute("data-id");
       const type = this.getAttribute("data-type");
       openDocumentDetailModal(id, type);
@@ -4414,9 +4414,9 @@ function renderDocumentsHistory() {
   });
 
   document.querySelectorAll(".btn-edit-transfer-doc").forEach(btn => {
-    btn.onclick = function() {
+    btn.onclick = async function() {
       if (!State.activeUser || State.activeUser.role !== "Administrador") {
-        alert("No tiene permisos para editar documentos.");
+        showCustomAlert("No tiene permisos para editar documentos.");
         return;
       }
       const id = this.getAttribute("data-id");
@@ -4443,9 +4443,9 @@ function renderDocumentsHistory() {
     };
   });
   document.querySelectorAll(".btn-edit-ingreso-serials").forEach(btn => {
-    btn.onclick = function() {
+    btn.onclick = async function() {
       if (!State.activeUser || State.activeUser.role !== "Administrador") {
-        alert("No tiene permisos para editar documentos.");
+        showCustomAlert("No tiene permisos para editar documentos.");
         return;
       }
       const id = this.getAttribute("data-id");
@@ -4454,9 +4454,9 @@ function renderDocumentsHistory() {
   });
 
   document.querySelectorAll(".btn-delete-doc").forEach(btn => {
-    btn.onclick = function() {
+    btn.onclick = async function() {
       if (!State.activeUser || State.activeUser.role !== "Administrador") {
-        alert("No tiene permisos para eliminar o anular documentos.");
+        showCustomAlert("No tiene permisos para eliminar o anular documentos.");
         return;
       }
       const id = this.getAttribute("data-id");
@@ -4473,7 +4473,7 @@ function renderDocumentsHistory() {
         confirmMsg = `¿Está seguro de eliminar el documento de facturación ${id}?`;
       }
 
-      if (confirm(confirmMsg)) {
+      if (await showCustomConfirm(confirmMsg)) {
         if (type === "Ingreso") {
           State.ingresos = State.ingresos.filter(d => d.id !== id);
         } else if (type === "Salida") {
@@ -4526,7 +4526,7 @@ function openEditIngresoSerialsListModal(id) {
             item.serials = newSerials;
             State.save();
             renderDocumentsHistory();
-            alert("Seriales actualizados correctamente.");
+            showCustomAlert("Seriales actualizados correctamente.");
             document.getElementById("modal-edit-ingreso-list").classList.add("hidden");
           }, item.serials || []);
         };
@@ -4729,7 +4729,7 @@ function openDocumentDetailModal(id, type) {
         await html2pdf().set(opt).from(printElement).save();
       } catch (err) {
         console.error(err);
-        alert("Error al generar el PDF.");
+        showCustomAlert("Error al generar el PDF.");
       }
       
       btn.disabled = false;
@@ -5117,7 +5117,7 @@ function renderReservasTable() {
 
   // Listener para el botón "Pagada"
   document.querySelectorAll(".btn-ship-reserva").forEach(btn => {
-    btn.onclick = function() {
+    btn.onclick = async function() {
       const idx = this.getAttribute("data-idx");
       openReservaShipModal(idx);
     };
@@ -5125,7 +5125,7 @@ function renderReservasTable() {
 
   // Listener para el botón "Ver Soporte"
   document.querySelectorAll(".btn-view-receipt").forEach(btn => {
-    btn.onclick = function() {
+    btn.onclick = async function() {
       const idx = parseInt(this.getAttribute("data-idx"));
       viewReservaReceipt(idx);
     };
@@ -5133,7 +5133,7 @@ function renderReservasTable() {
 
   // Listener para el botón "Cancelar"
   document.querySelectorAll(".btn-cancel-reserva").forEach(btn => {
-    btn.onclick = function() {
+    btn.onclick = async function() {
       const idx = parseInt(this.getAttribute("data-idx"));
       openReservaCancelModal(idx);
     };
@@ -5141,7 +5141,7 @@ function renderReservasTable() {
 
   // Listener para el botón "Abonar"
   document.querySelectorAll(".btn-abonar-reserva").forEach(btn => {
-    btn.onclick = function() {
+    btn.onclick = async function() {
       const idx = parseInt(this.getAttribute("data-idx"));
       const res = State.reservas[idx];
       
@@ -5311,27 +5311,27 @@ function openReservaShipModal(index) {
     const receiptFileEl = document.getElementById("reserva-receipt");
 
     if (!sku) {
-      alert("Por favor seleccione un producto.");
+      showCustomAlert("Por favor seleccione un producto.");
       return;
     }
     if (amount <= 0) {
-      alert("Por favor ingrese un abono mayor a 0.");
+      showCustomAlert("Por favor ingrese un abono mayor a 0.");
       return;
     }
     if (phone.length !== 10) {
-      alert("El teléfono debe tener exactamente 10 dígitos.");
+      showCustomAlert("El teléfono debe tener exactamente 10 dígitos.");
       return;
     }
     if (!paymentMethod) {
-      alert("Por favor seleccione un medio de pago.");
+      showCustomAlert("Por favor seleccione un medio de pago.");
       return;
     }
     if (paymentMethod === "Transferencia" && !bankVal) {
-      alert("Por favor indique el banco para la transferencia.");
+      showCustomAlert("Por favor indique el banco para la transferencia.");
       return;
     }
     if (paymentMethod === "Otro" && !otherVal) {
-      alert("Por favor especifique el medio de pago.");
+      showCustomAlert("Por favor especifique el medio de pago.");
       return;
     }
 
@@ -5339,18 +5339,18 @@ function openReservaShipModal(index) {
     if (receiptFileEl.files.length > 0) {
       const file = receiptFileEl.files[0];
       if (file.size > 10 * 1024 * 1024) {
-        alert("El soporte excede el tamaño máximo permitido de 10MB.");
+        showCustomAlert("El soporte excede el tamaño máximo permitido de 10MB.");
         return;
       }
       if (!file.type.startsWith("image/")) {
-        alert("El archivo soporte debe ser una imagen.");
+        showCustomAlert("El archivo soporte debe ser una imagen.");
         return;
       }
       try {
         receiptBase64 = await compressImageToBase64(file);
       } catch (err) {
         console.error("Error al procesar la imagen:", err);
-        alert("Ocurrió un error al procesar la imagen de soporte.");
+        showCustomAlert("Ocurrió un error al procesar la imagen de soporte.");
         return;
       }
     }
@@ -5381,7 +5381,7 @@ function openReservaShipModal(index) {
     // Resetear formulario
     document.getElementById("form-create-reserva").reset();
     initReservasModule();
-    alert("✅ Reserva registrada con éxito.");
+    showCustomAlert("✅ Reserva registrada con éxito.");
   });
 
   // Cerrar modal
@@ -5422,7 +5422,7 @@ function openReservaShipModal(index) {
       }
 
       if (!sourceWarehouse) {
-        alert("❌ No se pudo determinar la bodega de origen para descontar el inventario.");
+        showCustomAlert("❌ No se pudo determinar la bodega de origen para descontar el inventario.");
         return;
       }
 
@@ -5469,7 +5469,7 @@ function openReservaShipModal(index) {
       document.getElementById("modal-reserva-ship").classList.add("hidden");
       renderReservasTable();
       updateSummaryWidget();
-      alert(`✅ Reserva archivada y Salida ${salidaId} generada con éxito.`);
+      showCustomAlert(`✅ Reserva archivada y Salida ${salidaId} generada con éxito.`);
     }
   });
 
@@ -5500,7 +5500,7 @@ function openReservaShipModal(index) {
       State.save();
       document.getElementById("modal-reserva-cancel").classList.add("hidden");
       renderReservasTable();
-      alert("✅ Reserva cancelada correctamente.");
+      showCustomAlert("✅ Reserva cancelada correctamente.");
     }
   });
 })();
@@ -5536,7 +5536,7 @@ function renderBackupsTable() {
   });
 
   document.querySelectorAll(".btn-download-backup").forEach(btn => {
-    btn.onclick = function() {
+    btn.onclick = async function() {
       downloadSystemBackup(this.getAttribute("data-filename"));
     };
   });
@@ -5708,7 +5708,7 @@ function renderTempGarantiaMePiecesTable() {
 
   // Bind removal
   document.querySelectorAll(".btn-remove-temp-me-piece").forEach(btn => {
-    btn.onclick = function() {
+    btn.onclick = async function() {
       const idx = parseInt(this.getAttribute("data-idx"));
       tempGarantiaMePieces.splice(idx, 1);
       renderTempGarantiaMePiecesTable();
@@ -5750,13 +5750,13 @@ async function saveGarantia(type, formData, fileInputId) {
     document.getElementById(condId).classList.add('hidden');
     
     initGarantiasModule();
-    alert(`✅ Garantía ${id} registrada con éxito.`);
+    showCustomAlert(`✅ Garantía ${id} registrada con éxito.`);
   };
 
   if (fileInput && fileInput.files.length > 0) {
     const file = fileInput.files[0];
     if (file.size > 10 * 1024 * 1024) {
-      alert("❌ El archivo es demasiado grande. El tamaño máximo permitido es 10MB.");
+      showCustomAlert("❌ El archivo es demasiado grande. El tamaño máximo permitido es 10MB.");
       return;
     }
     
@@ -5770,7 +5770,7 @@ async function saveGarantia(type, formData, fileInputId) {
         });
       } catch (error) {
         console.error("Error al procesar la imagen de evidencia:", error);
-        alert("❌ Error al procesar la imagen de evidencia.");
+        showCustomAlert("❌ Error al procesar la imagen de evidencia.");
       }
     } else {
       const reader = new FileReader();
@@ -5782,7 +5782,7 @@ async function saveGarantia(type, formData, fileInputId) {
         });
       };
       reader.onerror = function() {
-        alert("❌ Error al leer el archivo de evidencia.");
+        showCustomAlert("❌ Error al leer el archivo de evidencia.");
       };
       reader.readAsDataURL(file);
     }
@@ -5856,7 +5856,7 @@ function renderGarantiasTable() {
 
   // Bind downloads
   document.querySelectorAll(".btn-download-gar-evidencia").forEach(btn => {
-    btn.onclick = function() {
+    btn.onclick = async function() {
       const id = this.getAttribute("data-id");
       const gar = State.garantias.find(g => g.id === id);
       if (gar && gar.evidence) {
@@ -5867,7 +5867,7 @@ function renderGarantiasTable() {
 
   // Bind view detail
   document.querySelectorAll(".btn-view-garantia").forEach(btn => {
-    btn.onclick = function() {
+    btn.onclick = async function() {
       const id = this.getAttribute("data-id");
       openGarantiaDetailModal(id);
     };
@@ -5875,9 +5875,9 @@ function renderGarantiasTable() {
 
   // Bind delete
   document.querySelectorAll(".btn-delete-garantia").forEach(btn => {
-    btn.onclick = function() {
+    btn.onclick = async function() {
       const id = this.getAttribute("data-id");
-      if (confirm(`¿Está seguro de eliminar el registro de garantía ${id}?`)) {
+      if (await showCustomConfirm(`¿Está seguro de eliminar el registro de garantía ${id}?`)) {
         State.garantias = State.garantias.filter(g => g.id !== id);
         State.save();
         renderGarantiasTable();
@@ -6089,7 +6089,7 @@ function renderTempPedidoItemsTable() {
 
   // Bind removal
   document.querySelectorAll(".btn-remove-temp-pedido-item").forEach(btn => {
-    btn.onclick = function() {
+    btn.onclick = async function() {
       const idx = parseInt(this.getAttribute("data-idx"));
       tempPedidoItems.splice(idx, 1);
       renderTempPedidoItemsTable();
@@ -6168,7 +6168,7 @@ function renderPedidosAccesoriosTable() {
 
   // Bind view detail
   document.querySelectorAll(".btn-view-pedido").forEach(btn => {
-    btn.onclick = function() {
+    btn.onclick = async function() {
       const id = this.getAttribute("data-id");
       openPedidoDetailModal(id);
     };
@@ -6176,7 +6176,7 @@ function renderPedidosAccesoriosTable() {
 
   // Bind receive
   document.querySelectorAll(".btn-receive-pedido").forEach(btn => {
-    btn.onclick = function() {
+    btn.onclick = async function() {
       const id = this.getAttribute("data-id");
       const ped = State.pedidosAccesorios.find(p => p.id === id);
       if (ped) {
@@ -6194,9 +6194,9 @@ function renderPedidosAccesoriosTable() {
 
   // Bind delete
   document.querySelectorAll(".btn-delete-pedido").forEach(btn => {
-    btn.onclick = function() {
+    btn.onclick = async function() {
       const id = this.getAttribute("data-id");
-      if (confirm(`¿Está seguro de eliminar la solicitud de pedido ${id}?`)) {
+      if (await showCustomConfirm(`¿Está seguro de eliminar la solicitud de pedido ${id}?`)) {
         State.pedidosAccesorios = State.pedidosAccesorios.filter(p => p.id !== id);
         State.save();
         renderPedidosAccesoriosTable();
@@ -6390,12 +6390,12 @@ function openPedidoDetailModal(id) {
       const sku = select.value;
 
       if (!sku) {
-        alert("Por favor seleccione una pieza.");
+        showCustomAlert("Por favor seleccione una pieza.");
         return;
       }
 
       if (tempGarantiaMePieces.some(item => item.pieceSku === sku)) {
-        alert("Esta pieza ya ha sido añadida a la lista.");
+        showCustomAlert("Esta pieza ya ha sido añadida a la lista.");
         return;
       }
 
@@ -6426,7 +6426,7 @@ function openPedidoDetailModal(id) {
       e.preventDefault();
       
       if (tempGarantiaMePieces.length === 0) {
-        alert("Por favor añada al menos una pieza con novedad a la garantía.");
+        showCustomAlert("Por favor añada al menos una pieza con novedad a la garantía.");
         return;
       }
 
@@ -6470,21 +6470,21 @@ function openPedidoDetailModal(id) {
       const qty = parseInt(qtyInput.value);
 
       if (!sku) {
-        alert("Por favor seleccione un accesorio.");
+        showCustomAlert("Por favor seleccione un accesorio.");
         return;
       }
       if (isNaN(qty) || qty <= 0) {
-        alert("Por favor ingrese una cantidad válida mayor o igual a 1.");
+        showCustomAlert("Por favor ingrese una cantidad válida mayor o igual a 1.");
         return;
       }
 
       if (esGar) {
         if (!relProdSelect.value) {
-          alert("Por favor seleccione el producto relacionado a la garantía.");
+          showCustomAlert("Por favor seleccione el producto relacionado a la garantía.");
           return;
         }
         if (!eanInput.value.trim()) {
-          alert("Por favor ingrese el EAN de la garantía.");
+          showCustomAlert("Por favor ingrese el EAN de la garantía.");
           return;
         }
       }
@@ -6516,7 +6516,7 @@ function openPedidoDetailModal(id) {
       e.preventDefault();
       
       if (tempPedidoItems.length === 0) {
-        alert("Por favor añada al menos un accesorio a la solicitud.");
+        showCustomAlert("Por favor añada al menos un accesorio a la solicitud.");
         return;
       }
 
@@ -6524,7 +6524,7 @@ function openPedidoDetailModal(id) {
       const fechaLlegada = llego === "Si" ? document.getElementById("pedido-fecha-llegada").value : "";
 
       if (llego === "Si" && !fechaLlegada) {
-        alert("Por favor ingrese la fecha de llegada.");
+        showCustomAlert("Por favor ingrese la fecha de llegada.");
         return;
       }
       
@@ -6552,7 +6552,7 @@ function openPedidoDetailModal(id) {
       document.getElementById("pedido-cond-llego").classList.add("hidden");
       
       initPedidosAccesoriosModule();
-      alert(`✅ Pedido ${id} registrado con éxito.`);
+      showCustomAlert(`✅ Pedido ${id} registrado con éxito.`);
     };
   }
 
@@ -7125,14 +7125,14 @@ function exportarRotuloPDF() {
     State.rotulos.push(nuevoRotulo);
     State.save();
     
-    alert(`Rótulo exportado con éxito. Folio registrado: ${folio}`);
+    showCustomAlert(`Rótulo exportado con éxito. Folio registrado: ${folio}`);
     
     document.getElementById("form-rotulo-envio").reset();
     initRotulosModule();
     renderDocumentsHistory();
   }).catch(err => {
     console.error(err);
-    alert("Hubo un error al generar el PDF.");
+    showCustomAlert("Hubo un error al generar el PDF.");
     btnExportar.disabled = false;
     btnExportar.innerHTML = `<i data-lucide="download-cloud"></i> Exportar en PDF`;
     lucide.createIcons();
@@ -7359,7 +7359,7 @@ function processAssignSerials() {
 function finalizeAssignSerials(serials) {
   const uniqueSerials = [...new Set(serials)];
   if (uniqueSerials.length !== serialsTargetQty) {
-    alert(`Debe asignar exactamente ${serialsTargetQty} seriales únicos. Ha proveído ${uniqueSerials.length}.`);
+    showCustomAlert(`Debe asignar exactamente ${serialsTargetQty} seriales únicos. Ha proveído ${uniqueSerials.length}.`);
     return;
   }
   document.getElementById("modal-assign-serials").classList.add("hidden");
@@ -7444,7 +7444,7 @@ document.getElementById("btn-confirm-select-serials").onclick = () => {
   // Update in case any checks happened before confirming
   updateSelectSerialsCount();
   if (selectedSerialsSet.size !== serialsTargetQty) {
-    alert(`Debe seleccionar exactamente ${serialsTargetQty} seriales. Ha seleccionado ${selectedSerialsSet.size}.`);
+    showCustomAlert(`Debe seleccionar exactamente ${serialsTargetQty} seriales. Ha seleccionado ${selectedSerialsSet.size}.`);
     return;
   }
   document.getElementById("modal-select-serials").classList.add("hidden");
@@ -8109,13 +8109,13 @@ document.getElementById("form-facturacion").addEventListener("submit", async fun
   e.preventDefault();
   
   if (facturacionItems.length === 0) {
-    alert("Debe agregar al menos un ítem al documento.");
+    showCustomAlert("Debe agregar al menos un ítem al documento.");
     return;
   }
   
   const invalidItems = facturacionItems.filter(i => !i.desc || i.desc === "");
   if (invalidItems.length > 0) {
-    alert("Todos los ítems deben tener un producto seleccionado.");
+    showCustomAlert("Todos los ítems deben tener un producto seleccionado.");
     return;
   }
 
@@ -8198,10 +8198,10 @@ document.getElementById("form-facturacion").addEventListener("submit", async fun
 
   try {
     await html2pdf().set(opt).from(clone).save();
-    alert(`✅ ${currentFacturaType} registrada y exportada como PDF con éxito.`);
+    showCustomAlert(`✅ ${currentFacturaType} registrada y exportada como PDF con éxito.`);
   } catch (err) {
     console.error(err);
-    alert("⚠️ El documento se guardó en el historial, pero ocurrió un error al exportar el PDF. Puede re-exportarlo desde el Historial.");
+    showCustomAlert("⚠️ El documento se guardó en el historial, pero ocurrió un error al exportar el PDF. Puede re-exportarlo desde el Historial.");
   } finally {
     document.body.removeChild(tempContainer);
     // Resetear formulario
@@ -8466,7 +8466,7 @@ function initInfoProductosModule() {
     });
 
     State.save();
-    alert("Información de productos guardada correctamente.");
+    showCustomAlert("Información de productos guardada correctamente.");
   });
 
   const navBtn = document.querySelector(".sidebar-nav .nav-item[data-target='module-info-productos']");
@@ -8476,4 +8476,83 @@ function initInfoProductosModule() {
       renderTable();
     });
   }
+}
+
+
+function showCustomAlert(msg, type = "info") {
+  const modal = document.getElementById("modal-custom-alert");
+  if (!modal) {
+    window.alert(msg);
+    return;
+  }
+  
+  const iconEl = document.getElementById("modal-custom-alert-icon");
+  const titleEl = document.getElementById("modal-custom-alert-title");
+  
+  let detectedType = type;
+  if (msg.includes("éxito") || msg.includes("xito") || msg.includes("✅")) {
+    detectedType = "success";
+  } else if (msg.includes("Error") || msg.includes("❌")) {
+    detectedType = "error";
+  } else if (msg.includes("⚠️") || msg.includes("ADVERTENCIA")) {
+    detectedType = "warning";
+  }
+
+  iconEl.innerHTML = "";
+  if (detectedType === "success") {
+    iconEl.innerHTML = '<i data-lucide="check-circle" style="color: var(--success); width: 24px; height: 24px;"></i>';
+    titleEl.textContent = "Éxito";
+  } else if (detectedType === "error") {
+    iconEl.innerHTML = '<i data-lucide="x-circle" style="color: var(--danger); width: 24px; height: 24px;"></i>';
+    titleEl.textContent = "Error";
+  } else if (detectedType === "warning") {
+    iconEl.innerHTML = '<i data-lucide="alert-triangle" style="color: var(--warning); width: 24px; height: 24px;"></i>';
+    titleEl.textContent = "Advertencia";
+  } else {
+    iconEl.innerHTML = '<i data-lucide="info" style="color: var(--primary); width: 24px; height: 24px;"></i>';
+    titleEl.textContent = "Información";
+  }
+  
+  // Clean up emojis if desired
+  let cleanMsg = msg.replace(/[✅⚠️❌🚨]/g, '').trim();
+  
+  document.getElementById("modal-custom-alert-msg").textContent = cleanMsg;
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+  modal.classList.remove("hidden");
+}
+
+function showCustomConfirm(msg) {
+  return new Promise((resolve) => {
+    const modal = document.getElementById("modal-custom-confirm");
+    if (!modal) {
+      resolve(window.confirm(msg));
+      return;
+    }
+    
+    let cleanMsg = msg.replace(/[✅⚠️❌🚨]/g, '').trim();
+    document.getElementById("modal-custom-confirm-msg").textContent = cleanMsg;
+    modal.classList.remove("hidden");
+    
+    const btnYes = document.getElementById("btn-custom-confirm-yes");
+    const btnNo = document.getElementById("btn-custom-confirm-no");
+    
+    const onConfirm = () => {
+      cleanup();
+      resolve(true);
+    };
+    
+    const onCancel = () => {
+      cleanup();
+      resolve(false);
+    };
+    
+    const cleanup = () => {
+      btnYes.removeEventListener("click", onConfirm);
+      btnNo.removeEventListener("click", onCancel);
+      modal.classList.add("hidden");
+    };
+    
+    btnYes.addEventListener("click", onConfirm);
+    btnNo.addEventListener("click", onCancel);
+  });
 }
