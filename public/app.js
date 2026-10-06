@@ -7123,7 +7123,7 @@ function exportarRotuloPDF() {
     try {
     // A veces html2canvas se atasca si el canvas no se invalida o hay referencias rotas
     // Pasamos un objeto html2canvas limpio
-    opt.html2canvas = { scale: 1.5, useCORS: true, logging: false, allowTaint: true };
+    opt.html2canvas = { scale: 1.5, useCORS: true, logging: false, allowTaint: false };
     
     html2pdf().from(container).set(opt).save().then(() => {
       btnExportar.disabled = false;
