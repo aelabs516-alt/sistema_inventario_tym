@@ -6924,6 +6924,7 @@ function initRotulosModule() {
     renderPdfTemplate(ROTULO_TEMPLATE_TYM_B64, "T&M");
     applyFieldCoordinates("T&M");
     updateRotuloPreview();
+    checkRotuloFormValidity();
   };
 
   btnMe.onclick = function() {
@@ -6948,6 +6949,7 @@ function initRotulosModule() {
     renderPdfTemplate(ROTULO_TEMPLATE_ME_B64, "ME");
     applyFieldCoordinates("ME");
     updateRotuloPreview();
+    checkRotuloFormValidity();
   };
 
   btnEnergia.onclick = function() {
@@ -6972,17 +6974,18 @@ function initRotulosModule() {
     renderPdfTemplate(ROTULO_TEMPLATE_ENERGIA_B64, "Energía Solar");
     applyFieldCoordinates("Energía Solar");
     updateRotuloPreview();
+    checkRotuloFormValidity();
   };
 
   const inputs = form.querySelectorAll("input, select");
   inputs.forEach(input => {
-    input.addEventListener("input", function() {
+    input.oninput = function() {
       if (this.tagName === "INPUT" && this.type !== "email") {
         this.value = this.value.toUpperCase();
       }
       updateRotuloPreview();
       checkRotuloFormValidity();
-    });
+    };
   });
 
   const transSelect = document.getElementById("rotulo-me-transportadora");
@@ -7117,26 +7120,38 @@ function exportarRotuloPDF() {
   btnExportar.innerHTML = `<i data-lucide="loader"></i> Generando...`;
   lucide.createIcons();
 
-  html2pdf().from(container).set(opt).save().then(() => {
-    btnExportar.disabled = false;
-    btnExportar.innerHTML = `<i data-lucide="download-cloud"></i> Exportar en PDF`;
-    lucide.createIcons();
+    try {
+    // A veces html2canvas se atasca si el canvas no se invalida o hay referencias rotas
+    // Pasamos un objeto html2canvas limpio
+    opt.html2canvas = { scale: 1.5, useCORS: true, logging: false, allowTaint: true };
+    
+    html2pdf().from(container).set(opt).save().then(() => {
+      btnExportar.disabled = false;
+      btnExportar.innerHTML = `<i data-lucide="download-cloud"></i> Exportar en PDF`;
+      if (typeof lucide !== 'undefined') lucide.createIcons();
 
-    State.rotulos.push(nuevoRotulo);
-    State.save();
-    
-    showCustomAlert(`Rótulo exportado con éxito. Folio registrado: ${folio}`);
-    
-    document.getElementById("form-rotulo-envio").reset();
-    initRotulosModule();
-    renderDocumentsHistory();
-  }).catch(err => {
-    console.error(err);
-    showCustomAlert("Hubo un error al generar el PDF.");
+      State.rotulos.push(nuevoRotulo);
+      State.save();
+      
+      showCustomAlert(`Rótulo exportado con éxito. Folio registrado: ${folio}`, "success");
+      
+      document.getElementById("form-rotulo-envio").reset();
+      initRotulosModule();
+      renderDocumentsHistory();
+    }).catch(err => {
+      console.error("Error en html2pdf:", err);
+      showCustomAlert("Hubo un error interno al generar el PDF.", "error");
+      btnExportar.disabled = false;
+      btnExportar.innerHTML = `<i data-lucide="download-cloud"></i> Exportar en PDF`;
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    });
+  } catch (e) {
+    console.error("Excepción síncrona en exportarRotuloPDF:", e);
+    showCustomAlert("Hubo un error al preparar la generación del PDF.", "error");
     btnExportar.disabled = false;
     btnExportar.innerHTML = `<i data-lucide="download-cloud"></i> Exportar en PDF`;
-    lucide.createIcons();
-  });
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  }
 }
 
 // --- CARGAR PANTALLA INICIAL ---
