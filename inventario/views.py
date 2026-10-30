@@ -125,10 +125,25 @@ def init_state(request):
         state = {}
         for state_key, model_class in MODEL_MAPPING.items():
             if model_class == AppUser:
-                records = model_class.objects.exclude(id='SYSTEM_METADATA').values_list('data', flat=True)
+                records = list(model_class.objects.exclude(id='SYSTEM_METADATA').values_list('data', flat=True))
+            elif state_key in ('salidas', 'reservas', 'garantias'):
+                raw_records = model_class.objects.all().values_list('data', flat=True)
+                records = []
+                for r in raw_records:
+                    if isinstance(r, dict):
+                        r_copy = dict(r)
+                        if state_key == 'salidas' and r_copy.get('carrierGuide') and len(str(r_copy['carrierGuide'])) > 200:
+                            r_copy['carrierGuide'] = '__LAZY_IMAGE__'
+                        elif state_key == 'reservas' and r_copy.get('receipt') and len(str(r_copy['receipt'])) > 200:
+                            r_copy['receipt'] = '__LAZY_IMAGE__'
+                        elif state_key == 'garantias' and isinstance(r_copy.get('evidence'), dict) and r_copy['evidence'].get('data'):
+                            r_copy['evidence'] = {'name': r_copy['evidence'].get('name', 'evidencia'), 'data': '__LAZY_IMAGE__'}
+                        records.append(r_copy)
+                    else:
+                        records.append(r)
             else:
-                records = model_class.objects.all().values_list('data', flat=True)
-            state[state_key] = list(records)
+                records = list(model_class.objects.all().values_list('data', flat=True))
+            state[state_key] = records
         
         meta_record = AppUser.objects.filter(id='SYSTEM_METADATA').first()
         if meta_record and isinstance(meta_record.data, dict):
@@ -181,6 +196,16 @@ def api_resource(request, resource_name, resource_id=None):
                     
             if not resource_id:
                 return JsonResponse({'error': 'Missing ID'}, status=400)
+                
+            if isinstance(data, dict) and resource_name in ('salidas', 'reservas', 'garantias'):
+                existing_obj = model_class.objects.filter(id=resource_id).first()
+                if existing_obj and isinstance(existing_obj.data, dict):
+                    if resource_name == 'salidas' and data.get('carrierGuide') == '__LAZY_IMAGE__':
+                        data['carrierGuide'] = existing_obj.data.get('carrierGuide', '')
+                    elif resource_name == 'reservas' and data.get('receipt') == '__LAZY_IMAGE__':
+                        data['receipt'] = existing_obj.data.get('receipt', '')
+                    elif resource_name == 'garantias' and isinstance(data.get('evidence'), dict) and data['evidence'].get('data') == '__LAZY_IMAGE__':
+                        data['evidence'] = existing_obj.data.get('evidence')
                 
             model_class.objects.update_or_create(
                 id=resource_id,

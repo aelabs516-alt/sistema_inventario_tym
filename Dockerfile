@@ -25,4 +25,4 @@ RUN python manage.py collectstatic --noinput
 EXPOSE 8000
 
 # Comando de inicio: Migra la BD real y enciende el servidor
-CMD ["sh", "-c", "python manage.py migrate && gunicorn core.wsgi:application --bind 0.0.0.0:8000"]
+CMD ["sh", "-c", "python manage.py migrate && gunicorn core.wsgi:application --bind 0.0.0.0:8000 --workers 2 --threads 4 --worker-class gthread --timeout 120"]

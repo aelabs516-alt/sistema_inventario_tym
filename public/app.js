@@ -4924,21 +4924,73 @@ function openDocumentDetailModal(id, type) {
 
   let receiptHTML = "";
   if (type === "Reserva" && doc.receipt) {
-    receiptHTML = `
-      <div class="mt-3 text-center border-top pt-2">
-        <div style="font-weight: bold; margin-bottom: 8px; text-align: left;" class="label">Soporte de Abono:</div>
-        <img src="${doc.receipt}" alt="Soporte de abono" style="max-width: 100%; max-height: 250px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); object-fit: contain;">
-      </div>
-    `;
+    if (doc.receipt === "__LAZY_IMAGE__") {
+      receiptHTML = `
+        <div class="mt-3 text-center border-top pt-2" id="lazy-doc-img-container">
+          <div style="font-weight: bold; margin-bottom: 8px; text-align: left;" class="label">Soporte de Abono:</div>
+          <span class="text-muted font-sm">Cargando imagen...</span>
+        </div>
+      `;
+      fetch(`/api/reservas/${encodeURIComponent(doc.id)}`).then(r => r.json()).then(fullDoc => {
+        if (fullDoc && fullDoc.receipt) {
+          doc.receipt = fullDoc.receipt;
+          if (previousStateSnapshot && previousStateSnapshot.reservas) {
+            const snapItem = previousStateSnapshot.reservas.find(x => x.id === doc.id);
+            if (snapItem) snapItem.receipt = fullDoc.receipt;
+          }
+          const container = document.getElementById("lazy-doc-img-container");
+          if (container) {
+            container.innerHTML = `
+              <div style="font-weight: bold; margin-bottom: 8px; text-align: left;" class="label">Soporte de Abono:</div>
+              <img src="${doc.receipt}" alt="Soporte de abono" style="max-width: 100%; max-height: 250px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); object-fit: contain;">
+            `;
+          }
+        }
+      });
+    } else {
+      receiptHTML = `
+        <div class="mt-3 text-center border-top pt-2">
+          <div style="font-weight: bold; margin-bottom: 8px; text-align: left;" class="label">Soporte de Abono:</div>
+          <img src="${doc.receipt}" alt="Soporte de abono" style="max-width: 100%; max-height: 250px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); object-fit: contain;">
+        </div>
+      `;
+    }
   } else if (type === "Salida" && doc.carrierGuide) {
-    receiptHTML = `
-      <div class="mt-3 text-center border-top pt-2">
-        <div style="font-weight: bold; margin-bottom: 8px; text-align: left;" class="label">Guía Transportadora:</div>
-        <a href="${doc.carrierGuide}" target="_blank" title="Ver imagen en tamaño completo">
-          <img src="${doc.carrierGuide}" alt="Guía Transportadora" style="max-width: 100%; max-height: 250px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); object-fit: contain; cursor: pointer; transition: transform 0.2s ease;">
-        </a>
-      </div>
-    `;
+    if (doc.carrierGuide === "__LAZY_IMAGE__") {
+      receiptHTML = `
+        <div class="mt-3 text-center border-top pt-2" id="lazy-doc-img-container">
+          <div style="font-weight: bold; margin-bottom: 8px; text-align: left;" class="label">Guía Transportadora:</div>
+          <span class="text-muted font-sm">Cargando imagen...</span>
+        </div>
+      `;
+      fetch(`/api/salidas/${encodeURIComponent(doc.id)}`).then(r => r.json()).then(fullDoc => {
+        if (fullDoc && fullDoc.carrierGuide) {
+          doc.carrierGuide = fullDoc.carrierGuide;
+          if (previousStateSnapshot && previousStateSnapshot.salidas) {
+            const snapItem = previousStateSnapshot.salidas.find(x => x.id === doc.id);
+            if (snapItem) snapItem.carrierGuide = fullDoc.carrierGuide;
+          }
+          const container = document.getElementById("lazy-doc-img-container");
+          if (container) {
+            container.innerHTML = `
+              <div style="font-weight: bold; margin-bottom: 8px; text-align: left;" class="label">Guía Transportadora:</div>
+              <a href="${doc.carrierGuide}" target="_blank" title="Ver imagen en tamaño completo">
+                <img src="${doc.carrierGuide}" alt="Guía Transportadora" style="max-width: 100%; max-height: 250px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); object-fit: contain; cursor: pointer; transition: transform 0.2s ease;">
+              </a>
+            `;
+          }
+        }
+      });
+    } else {
+      receiptHTML = `
+        <div class="mt-3 text-center border-top pt-2">
+          <div style="font-weight: bold; margin-bottom: 8px; text-align: left;" class="label">Guía Transportadora:</div>
+          <a href="${doc.carrierGuide}" target="_blank" title="Ver imagen en tamaño completo">
+            <img src="${doc.carrierGuide}" alt="Guía Transportadora" style="max-width: 100%; max-height: 250px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); object-fit: contain; cursor: pointer; transition: transform 0.2s ease;">
+          </a>
+        </div>
+      `;
+    }
   }
 
   modalContent.innerHTML = `
@@ -5157,7 +5209,7 @@ function renderReservasTable() {
   lucide.createIcons();
 }
 
-function viewReservaReceipt(index) {
+async function viewReservaReceipt(index) {
   const res = State.reservas[index];
   if (!res || !res.receipt) return;
   
@@ -5166,6 +5218,25 @@ function viewReservaReceipt(index) {
   const content = document.getElementById("modal-content");
   
   title.innerText = `Soporte de Pago - ${res.name}`;
+  
+  if (res.receipt === "__LAZY_IMAGE__" && res.id) {
+    content.innerHTML = `<div class="text-center" style="padding: 20px;"><span class="text-muted">Cargando soporte...</span></div>`;
+    modal.classList.remove("hidden");
+    try {
+      const r = await fetch(`/api/reservas/${encodeURIComponent(res.id)}`);
+      const fullRes = await r.json();
+      if (fullRes && fullRes.receipt) {
+        res.receipt = fullRes.receipt;
+        if (previousStateSnapshot && previousStateSnapshot.reservas) {
+          const snapItem = previousStateSnapshot.reservas.find(x => x.id === res.id);
+          if (snapItem) snapItem.receipt = fullRes.receipt;
+        }
+      }
+    } catch (e) {
+      console.error("Error cargando soporte de reserva:", e);
+    }
+  }
+
   content.innerHTML = `
     <div class="text-center" style="padding: 10px;">
       <img src="${res.receipt}" alt="Soporte de reserva" style="max-width: 100%; max-height: 60vh; border-radius: var(--radius-sm); border: 1px solid var(--border-color); object-fit: contain;">
@@ -5860,6 +5931,21 @@ function renderGarantiasTable() {
       const id = this.getAttribute("data-id");
       const gar = State.garantias.find(g => g.id === id);
       if (gar && gar.evidence) {
+        if (gar.evidence.data === "__LAZY_IMAGE__") {
+          try {
+            const r = await fetch(`/api/garantias/${encodeURIComponent(gar.id)}`);
+            const fullGar = await r.json();
+            if (fullGar && fullGar.evidence) {
+              gar.evidence = fullGar.evidence;
+              if (previousStateSnapshot && previousStateSnapshot.garantias) {
+                const snapItem = previousStateSnapshot.garantias.find(x => x.id === gar.id);
+                if (snapItem) snapItem.evidence = fullGar.evidence;
+              }
+            }
+          } catch (e) {
+            console.error("Error cargando evidencia:", e);
+          }
+        }
         downloadEvidencia(gar.evidence.data, gar.evidence.name);
       }
     };
@@ -5993,7 +6079,22 @@ function openGarantiaDetailModal(id) {
   `;
 
   if (gar.evidence) {
-    document.getElementById("btn-modal-download-evidencia").onclick = function() {
+    document.getElementById("btn-modal-download-evidencia").onclick = async function() {
+      if (gar.evidence.data === "__LAZY_IMAGE__") {
+        try {
+          const r = await fetch(`/api/garantias/${encodeURIComponent(gar.id)}`);
+          const fullGar = await r.json();
+          if (fullGar && fullGar.evidence) {
+            gar.evidence = fullGar.evidence;
+            if (previousStateSnapshot && previousStateSnapshot.garantias) {
+              const snapItem = previousStateSnapshot.garantias.find(x => x.id === gar.id);
+              if (snapItem) snapItem.evidence = fullGar.evidence;
+            }
+          }
+        } catch (e) {
+          console.error("Error cargando evidencia:", e);
+        }
+      }
       downloadEvidencia(gar.evidence.data, gar.evidence.name);
     };
   }
