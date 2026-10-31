@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <!-- Stylesheet -->
-  <link rel="stylesheet" href="styles.css?v=2">
+  <link rel="stylesheet" href="styles.css?v=4">
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <!-- SheetJS for Excel Import/Export -->
@@ -266,15 +266,15 @@
           </div>
 
           <!-- Filtros en una sola fila -->
-          <div class="card filter-card" style="position: sticky; top: -30px; z-index: 20; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
+          <div class="card filter-card" style="position: sticky; top: 0; z-index: 100; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
             <div class="card-body db-filter-row">
               <div class="db-filter-group">
                 <label class="db-filter-label"><i data-lucide="calendar"></i> Años</label>
-                <select id="db-filter-years" multiple class="custom-select-multi db-select"></select>
+                <select id="db-filter-years" multiple class="custom-select-multi db-select" data-placeholder="Todos los años"></select>
               </div>
               <div class="db-filter-group">
                 <label class="db-filter-label"><i data-lucide="calendar-days"></i> Meses</label>
-                <select id="db-filter-months" multiple class="custom-select-multi db-select">
+                <select id="db-filter-months" multiple class="custom-select-multi db-select" data-placeholder="Todos los meses">
                   <option value="0">Enero</option>
                   <option value="1">Febrero</option>
                   <option value="2">Marzo</option>
@@ -291,11 +291,11 @@
               </div>
               <div class="db-filter-group">
                 <label class="db-filter-label"><i data-lucide="hash"></i> Día</label>
-                <select id="db-filter-days" multiple class="custom-select-multi db-select"></select>
+                <select id="db-filter-days" multiple class="custom-select-multi db-select" data-placeholder="Todos los días"></select>
               </div>
               <div class="db-filter-group">
                 <label class="db-filter-label"><i data-lucide="tag"></i> Categoría</label>
-                <select id="db-filter-categories" multiple class="custom-select-multi db-select">
+                <select id="db-filter-categories" multiple class="custom-select-multi db-select" data-placeholder="Todas las categorías">
                   <option value="T&amp;M">T&amp;M</option>
                   <option value="ME">ME</option>
                   <option value="Accesorios ME">Accesorios ME</option>
@@ -303,14 +303,13 @@
               </div>
               <div class="db-filter-group">
                 <label class="db-filter-label"><i data-lucide="database"></i> Bodegas</label>
-                <select id="db-filter-warehouses" multiple class="custom-select-multi db-select"></select>
+                <select id="db-filter-warehouses" multiple class="custom-select-multi db-select" data-placeholder="Todas las bodegas"></select>
               </div>
               <div class="db-filter-group">
                  <label class="db-filter-label"><i data-lucide="package"></i> Producto</label>
-                 <select id="db-filter-products" multiple class="custom-select-multi db-select"></select>
+                 <select id="db-filter-products" multiple class="custom-select-multi db-select" data-placeholder="Todos los productos"></select>
                </div>
               <div class="db-filter-actions">
-                <label class="db-filter-label">&nbsp;</label>
                 <button id="btn-apply-db-filters" class="btn btn-primary db-filter-btn">
                   <i data-lucide="refresh-cw"></i> Aplicar
                 </button>
@@ -836,7 +835,7 @@
             <p>Consulte y configure los precios y la garantía de todos los productos creados en el sistema.</p>
           </div>
 
-          <div class="card filter-card" style="position: sticky; top: -30px; z-index: 20; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
+          <div class="card filter-card" style="position: sticky; top: 0; z-index: 100; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
             <div class="card-body">
               <div class="d-flex align-items-center justify-content-between mb-3">
                 <h5 class="card-title mb-0"><i data-lucide="filter"></i> Filtros de Búsqueda</h5>
@@ -845,11 +844,11 @@
               <div class="filters-grid" style="grid-template-columns: repeat(3, 1fr) !important;">
                 <div class="db-filter-group">
                   <label class="db-filter-label"><i data-lucide="search"></i> Buscar Producto</label>
-                  <input type="text" id="info-prod-search" class="form-control db-select" placeholder="Nombre del producto...">
+                  <input type="text" id="info-prod-search" class="form-control" placeholder="Nombre del producto...">
                 </div>
                 <div class="db-filter-group">
                   <label class="db-filter-label"><i data-lucide="tag"></i> Categoría</label>
-                  <select id="info-prod-category" multiple class="custom-select-multi db-select">
+                  <select id="info-prod-category" multiple class="custom-select-multi db-select" data-placeholder="Todas las categorías">
                     <option value="T&M">T&M</option>
                     <option value="ME">ME</option>
                     <option value="Accesorios ME">Accesorios ME</option>
@@ -857,7 +856,7 @@
                 </div>
                 <div class="db-filter-group">
                   <label class="db-filter-label"><i data-lucide="package"></i> Producto (Selección)</label>
-                  <select id="info-prod-select" multiple class="custom-select-multi db-select">
+                  <select id="info-prod-select" multiple class="custom-select-multi db-select" data-placeholder="Todos los productos">
                     <!-- Dinámico -->
                   </select>
                 </div>
@@ -1369,17 +1368,17 @@
           </div>
 
           <!-- Filtros de cruce de datos -->
-          <div class="card filter-card">
+          <div class="card filter-card" style="position: relative; z-index: 100;">
             <div class="card-body">
               <h5 class="card-title"><i data-lucide="filter"></i> Cruce de Inventarios (Selección Múltiple)</h5>
               <div class="db-filter-group" style="margin-bottom: 15px;">
                 <label class="db-filter-label"><i data-lucide="search"></i> Buscar Producto</label>
-                <input type="text" id="stock-filter-product-name" class="form-control db-select" placeholder="Nombre del producto...">
+                <input type="text" id="stock-filter-product-name" class="form-control" placeholder="Nombre del producto...">
               </div>
               <div class="filters-grid">
                 <div class="db-filter-group">
                   <label class="db-filter-label"><i data-lucide="tag"></i> Categoría</label>
-                  <select id="stock-filter-categories" multiple class="custom-select-multi db-select">
+                  <select id="stock-filter-categories" multiple class="custom-select-multi db-select" data-placeholder="Todas las categorías">
                     <option value="T&M">T&M</option>
                     <option value="ME">ME</option>
                     <option value="Accesorios ME">Accesorios ME</option>
@@ -1387,13 +1386,13 @@
                 </div>
                 <div class="db-filter-group">
                   <label class="db-filter-label"><i data-lucide="warehouse"></i> Bodega</label>
-                  <select id="stock-filter-warehouses" multiple class="custom-select-multi db-select">
+                  <select id="stock-filter-warehouses" multiple class="custom-select-multi db-select" data-placeholder="Todas las bodegas">
                     <!-- Dinámico -->
                   </select>
                 </div>
                 <div class="db-filter-group">
                   <label class="db-filter-label"><i data-lucide="package"></i> Producto (Selección)</label>
-                  <select id="stock-filter-products" multiple class="custom-select-multi db-select">
+                  <select id="stock-filter-products" multiple class="custom-select-multi db-select" data-placeholder="Todos los productos">
                     <!-- Dinámico -->
                   </select>
                 </div>
@@ -1457,17 +1456,17 @@
           </div>
 
           <!-- Filtros de cruce de datos -->
-          <div class="card filter-card">
+          <div class="card filter-card" style="position: relative; z-index: 100;">
             <div class="card-body">
               <h5 class="card-title"><i data-lucide="filter"></i> Cruce de Inventarios (Selección Múltiple)</h5>
               <div class="db-filter-group" style="margin-bottom: 15px;">
                 <label class="db-filter-label"><i data-lucide="search"></i> Buscar Producto</label>
-                <input type="text" id="stock-basic-filter-product-name" class="form-control db-select" placeholder="Nombre del producto...">
+                <input type="text" id="stock-basic-filter-product-name" class="form-control" placeholder="Nombre del producto...">
               </div>
-              <div class="filters-grid">
+              <div class="filters-grid" style="grid-template-columns: repeat(3, 1fr);">
                 <div class="db-filter-group">
                   <label class="db-filter-label"><i data-lucide="tag"></i> Categoría</label>
-                  <select id="stock-basic-filter-categories" multiple class="custom-select-multi db-select">
+                  <select id="stock-basic-filter-categories" multiple class="custom-select-multi db-select" data-placeholder="Todas las categorías">
                     <option value="T&M">T&M</option>
                     <option value="ME">ME</option>
                     <option value="Accesorios ME">Accesorios ME</option>
@@ -1475,13 +1474,13 @@
                 </div>
                 <div class="db-filter-group">
                   <label class="db-filter-label"><i data-lucide="warehouse"></i> Bodega</label>
-                  <select id="stock-basic-filter-warehouses" multiple class="custom-select-multi db-select">
+                  <select id="stock-basic-filter-warehouses" multiple class="custom-select-multi db-select" data-placeholder="Todas las bodegas">
                     <!-- Dinámico -->
                   </select>
                 </div>
                 <div class="db-filter-group">
                   <label class="db-filter-label"><i data-lucide="package"></i> Producto (Selección)</label>
-                  <select id="stock-basic-filter-products" multiple class="custom-select-multi db-select">
+                  <select id="stock-basic-filter-products" multiple class="custom-select-multi db-select" data-placeholder="Todos los productos">
                     <!-- Dinámico -->
                   </select>
                 </div>
@@ -2892,6 +2891,6 @@
 
   <!-- Script Principal -->
   <script src="colombia_geodata.js"></script>
-  <script src="app.js?v=3"></script>
+  <script src="app.js?v=4"></script>
 </body>
 </html>

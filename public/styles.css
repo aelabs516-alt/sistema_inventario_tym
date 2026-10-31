@@ -1707,6 +1707,7 @@ body.dark-mode .alert-info {
   flex-direction: column;
   flex: 1 1 0;
   min-width: 0;
+  position: relative;
 }
 
 /* Etiqueta compacta con ícono */
@@ -1731,22 +1732,23 @@ body.dark-mode .alert-info {
 
 /* Select compacto para la fila del dashboard */
 .db-select {
-  height: 65px !important;   /* 3-4 opciones visibles */
+  height: 42px !important;
   width: 100%;
-  font-size: 0.78rem !important;
+  font-size: 0.85rem !important;
 }
 
 /* Columna de botones */
 .db-filter-actions {
   display: flex;
-  flex-direction: column;
-  gap: 5px;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
   flex-shrink: 0;
 }
 .db-filter-btn {
   white-space: nowrap;
-  padding: 6px 12px;
-  font-size: 0.8rem;
+  padding: 10px 14px;
+  font-size: 0.85rem;
 }
 
 /* Responsive: en pantallas pequeñas se apilan */

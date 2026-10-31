@@ -2873,13 +2873,41 @@ function renderSavedSimulationsList() {
 // ==========================================================================
 let activeStockBasicFilters = { categories: [], warehouses: [], products: [] };
 
+function updateStockBasicProductOptions() {
+  const catSelect = document.getElementById("stock-basic-filter-categories");
+  const prodSelect = document.getElementById("stock-basic-filter-products");
+  if (!catSelect || !prodSelect) return;
+  const selectedCats = Array.from(catSelect.selectedOptions).map(o => o.value);
+  const prevSelected = Array.from(prodSelect.selectedOptions).map(o => o.value);
+  let filteredProds = State.products;
+  if (selectedCats.length > 0) {
+    filteredProds = State.products.filter(p => selectedCats.includes(p.category));
+  }
+  const sortedProds = [...filteredProds].sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
+  prodSelect.innerHTML = sortedProds.map(p => `<option value="${p.sku}">${p.name}</option>`).join("");
+  Array.from(prodSelect.options).forEach(opt => {
+    if (prevSelected.includes(opt.value)) opt.selected = true;
+  });
+  if (typeof syncCustomMultiSelect === "function") syncCustomMultiSelect(prodSelect);
+}
+
 function initStockBasicFilters() {
   const whSelect = document.getElementById("stock-basic-filter-warehouses");
+  const prevWh = Array.from(whSelect.selectedOptions).map(o => o.value);
   whSelect.innerHTML = State.warehouses.map(w => `<option value="${w}">${w}</option>`).join("");
+  Array.from(whSelect.options).forEach(opt => {
+    if (prevWh.includes(opt.value)) opt.selected = true;
+  });
 
-  const prodSelect = document.getElementById("stock-basic-filter-products");
-  const sortedProds = [...State.products].sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
-  prodSelect.innerHTML = sortedProds.map(p => `<option value="${p.sku}">${p.name}</option>`).join("");
+  const catSelect = document.getElementById("stock-basic-filter-categories");
+  if (catSelect) {
+    catSelect.onchange = function() {
+      updateStockBasicProductOptions();
+    };
+  }
+
+  updateStockBasicProductOptions();
+  if (typeof syncAllCustomMultiSelects === "function") syncAllCustomMultiSelects();
 }
 
 function renderStockBasicTable() {
@@ -2983,10 +3011,14 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   document.getElementById("btn-clear-stock-basic-filters").addEventListener("click", () => {
-    document.getElementById("stock-basic-filter-categories").value = "";
-    document.getElementById("stock-basic-filter-warehouses").value = "";
-    document.getElementById("stock-basic-filter-products").value = "";
+    document.getElementById("stock-basic-filter-categories").selectedIndex = -1;
+    document.getElementById("stock-basic-filter-warehouses").selectedIndex = -1;
+    updateStockBasicProductOptions();
+    document.getElementById("stock-basic-filter-products").selectedIndex = -1;
+    const nameInput = document.getElementById("stock-basic-filter-product-name");
+    if (nameInput) nameInput.value = "";
     activeStockBasicFilters = { categories: [], warehouses: [], products: [] };
+    if (typeof syncAllCustomMultiSelects === "function") syncAllCustomMultiSelects();
     renderStockBasicTable();
   });
 });
@@ -2997,15 +3029,42 @@ document.addEventListener("DOMContentLoaded", () => {
 // ==========================================================================
 let activeStockFilters = { categories: [], warehouses: [], products: [] };
 
+function updateStockGlobalProductOptions() {
+  const catSelect = document.getElementById("stock-filter-categories");
+  const prodSelect = document.getElementById("stock-filter-products");
+  if (!catSelect || !prodSelect) return;
+  const selectedCats = Array.from(catSelect.selectedOptions).map(o => o.value);
+  const prevSelected = Array.from(prodSelect.selectedOptions).map(o => o.value);
+  let filteredProds = State.products;
+  if (selectedCats.length > 0) {
+    filteredProds = State.products.filter(p => selectedCats.includes(p.category));
+  }
+  const sortedProds = [...filteredProds].sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
+  prodSelect.innerHTML = sortedProds.map(p => `<option value="${p.sku}">${p.name}</option>`).join("");
+  Array.from(prodSelect.options).forEach(opt => {
+    if (prevSelected.includes(opt.value)) opt.selected = true;
+  });
+  if (typeof syncCustomMultiSelect === "function") syncCustomMultiSelect(prodSelect);
+}
+
 function initStockFilters() {
   // Cargar select múltiple de bodegas
   const whSelect = document.getElementById("stock-filter-warehouses");
+  const prevWh = Array.from(whSelect.selectedOptions).map(o => o.value);
   whSelect.innerHTML = State.warehouses.map(w => `<option value="${w}">${w}</option>`).join("");
+  Array.from(whSelect.options).forEach(opt => {
+    if (prevWh.includes(opt.value)) opt.selected = true;
+  });
+
+  const catSelect = document.getElementById("stock-filter-categories");
+  if (catSelect) {
+    catSelect.onchange = function() {
+      updateStockGlobalProductOptions();
+    };
+  }
 
   // Cargar select múltiple de productos ordenados alfabéticamente
-  const prodSelect = document.getElementById("stock-filter-products");
-  const sortedProds = [...State.products].sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
-  prodSelect.innerHTML = sortedProds.map(p => `<option value="${p.sku}">${p.name}</option>`).join("");
+  updateStockGlobalProductOptions();
 
   // Asignar fechas por defecto: últimos 3 meses
   const todayStr = new Date().toISOString().split("T")[0];
@@ -3034,6 +3093,8 @@ function initStockFilters() {
       renderStockProjectionsTable();
     }
   };
+
+  if (typeof syncAllCustomMultiSelects === "function") syncAllCustomMultiSelects();
 }
 
 // Botones aplicar filtros de stock
@@ -3052,7 +3113,10 @@ document.getElementById("btn-apply-stock-filters").onclick = function() {
 document.getElementById("btn-clear-stock-filters").onclick = function() {
   document.getElementById("stock-filter-categories").selectedIndex = -1;
   document.getElementById("stock-filter-warehouses").selectedIndex = -1;
+  updateStockGlobalProductOptions();
   document.getElementById("stock-filter-products").selectedIndex = -1;
+  const nameInput = document.getElementById("stock-filter-product-name");
+  if (nameInput) nameInput.value = "";
 
   // Restablecer checkbox y fechas por defecto
   const calcThreeMonthsCheck = document.getElementById("stock-calc-three-months");
@@ -3071,6 +3135,7 @@ document.getElementById("btn-clear-stock-filters").onclick = function() {
   endDateInput.disabled = true;
 
   activeStockFilters = { categories: [], warehouses: [], products: [] };
+  if (typeof syncAllCustomMultiSelects === "function") syncAllCustomMultiSelects();
   renderStockProjectionsTable();
 };
 
@@ -3108,7 +3173,7 @@ function renderStockProjectionsTable() {
   if (modeLabel) {
     modeLabel.textContent = isConsolidated
       ? "Vista Consolidada (Total todas las bodegas)"
-      : `Vista Detallada por Bodega (${warehousesToList.join(", ") || "Ninguna"})")`;
+      : `Vista Detallada por Bodega (${warehousesToList.join(", ") || "Ninguna"})`;
   }
 
   // Función auxiliar: calcular datos de ventas para un producto en un conjunto de bodegas
@@ -3270,13 +3335,19 @@ function initDashboardFilters() {
   });
 
   const selectYears = document.getElementById("db-filter-years");
+  const prevYears = Array.from(selectYears.selectedOptions).map(o => o.value);
   selectYears.innerHTML = Array.from(years).sort().map(y => `<option value="${y}">${y}</option>`).join("");
+  Array.from(selectYears.options).forEach(opt => { if (prevYears.includes(opt.value)) opt.selected = true; });
 
   const selectDays = document.getElementById("db-filter-days");
+  const prevDays = Array.from(selectDays.selectedOptions).map(o => o.value);
   selectDays.innerHTML = Array.from(days).sort((a,b) => a-b).map(d => `<option value="${d}">${d}</option>`).join("");
+  Array.from(selectDays.options).forEach(opt => { if (prevDays.includes(opt.value)) opt.selected = true; });
 
   const selectWh = document.getElementById("db-filter-warehouses");
+  const prevWh = Array.from(selectWh.selectedOptions).map(o => o.value);
   selectWh.innerHTML = State.warehouses.map(w => `<option value="${w}">${w}</option>`).join("");
+  Array.from(selectWh.options).forEach(opt => { if (prevWh.includes(opt.value)) opt.selected = true; });
 
   // Al cambiar categorías en el dashboard, actualizar y filtrar el listado de productos
   document.getElementById("db-filter-categories").onchange = function() {
@@ -3284,6 +3355,7 @@ function initDashboardFilters() {
   };
 
   updateDashboardProductFilterOptions();
+  if (typeof syncAllCustomMultiSelects === "function") syncAllCustomMultiSelects();
 }
 
 function updateDashboardProductFilterOptions() {
@@ -3310,6 +3382,7 @@ function updateDashboardProductFilterOptions() {
       opt.selected = true;
     }
   });
+  if (typeof syncCustomMultiSelect === "function") syncCustomMultiSelect(productSelect);
 }
 
 // Botones Filtros Dashboard
@@ -3336,6 +3409,7 @@ document.getElementById("btn-clear-db-filters").onclick = function() {
   document.getElementById("db-filter-products").selectedIndex = -1;
 
   activeDbFilters = { years: [], months: [], days: [], categories: [], warehouses: [], products: [] };
+  if (typeof syncAllCustomMultiSelects === "function") syncAllCustomMultiSelects();
   renderDashboardCharts();
 };
 
@@ -8461,6 +8535,158 @@ if (recoveryForm) {
   };
 }
 
+// --- COMPONENTE REUTILIZABLE: DROPDOWN CON CHECKBOXES PARA SELECT MULTIPLE ---
+function syncCustomMultiSelect(selectEl) {
+  if (!selectEl) return;
+  const selectId = selectEl.id;
+  if (!selectId) return;
+  const defaultLabel = selectEl.getAttribute("data-placeholder") || "Todos";
+
+  selectEl.style.display = "none";
+
+  const parent = selectEl.parentElement;
+  if (parent) {
+    parent.style.position = "relative";
+  }
+
+  let wrapper = document.getElementById(`${selectId}-dropdown-wrapper`);
+  let btn, lbl, menu;
+
+  if (!wrapper) {
+    wrapper = document.createElement("div");
+    wrapper.id = `${selectId}-dropdown-wrapper`;
+    wrapper.style.position = "relative";
+    wrapper.style.width = "100%";
+
+    btn = document.createElement("button");
+    btn.type = "button";
+    btn.id = `${selectId}-dropdown-btn`;
+    btn.className = "custom-dropdown-btn";
+    btn.innerHTML = `
+      <span id="${selectId}-dropdown-label" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${defaultLabel}</span>
+      <i data-lucide="chevron-down" style="width: 16px; height: 16px; color: var(--text-muted); flex-shrink: 0;"></i>
+    `;
+
+    menu = document.createElement("div");
+    menu.id = `${selectId}-dropdown-menu`;
+    menu.className = "custom-dropdown-menu hidden";
+    menu.style.cssText = "position: absolute; top: calc(100% + 4px); left: 0; width: 100%; min-width: 190px; background-color: var(--bg-secondary); color: var(--text-main); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 12px; max-height: 250px; overflow-y: auto; z-index: 999; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1);";
+
+    wrapper.appendChild(btn);
+    wrapper.appendChild(menu);
+    selectEl.insertAdjacentElement("afterend", wrapper);
+
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const wasHidden = menu.classList.contains("hidden");
+      document.querySelectorAll(".custom-dropdown-menu, #docs-pve-filter-menu").forEach(m => m.classList.add("hidden"));
+      if (wasHidden) {
+        menu.classList.remove("hidden");
+      }
+    };
+
+    menu.onclick = (e) => {
+      e.stopPropagation();
+    };
+
+    if (typeof lucide !== "undefined") lucide.createIcons();
+  } else {
+    btn = document.getElementById(`${selectId}-dropdown-btn`);
+    menu = document.getElementById(`${selectId}-dropdown-menu`);
+  }
+
+  lbl = document.getElementById(`${selectId}-dropdown-label`);
+
+  const options = Array.from(selectEl.options);
+  if (options.length === 0) {
+    menu.innerHTML = `<div style="font-size: 13px; color: var(--text-muted);">Sin opciones</div>`;
+    if (lbl) lbl.textContent = defaultLabel;
+    return;
+  }
+
+  let html = `<label style="display:flex; align-items:center; gap:8px; font-size:13px; margin-bottom:6px; cursor:pointer;"><input type="checkbox" id="${selectId}-check-all" style="width:auto; margin:0;"> <b>Seleccionar Todos</b></label><hr style="margin: 6px 0; border-color: var(--border-color);">`;
+  options.forEach((opt, idx) => {
+    const escapedVal = String(opt.value).replace(/"/g, "&quot;");
+    html += `<label style="display:flex; align-items:center; gap:8px; font-size:13px; margin-bottom:4px; cursor:pointer;">
+               <input type="checkbox" class="custom-multi-item-check" data-opt-index="${idx}" value="${escapedVal}" ${opt.selected ? "checked" : ""} style="width:auto; margin:0; flex-shrink:0;">
+               <span style="line-height:1.25;">${opt.textContent}</span>
+             </label>`;
+  });
+  menu.innerHTML = html;
+
+  const allCheck = document.getElementById(`${selectId}-check-all`);
+  const itemChecks = menu.querySelectorAll(".custom-multi-item-check");
+
+  function updateLabelAndSyncState(triggerChange = false) {
+    const checkedBoxes = Array.from(itemChecks).filter(c => c.checked);
+    itemChecks.forEach(c => {
+      const idx = parseInt(c.getAttribute("data-opt-index"), 10);
+      if (selectEl.options[idx]) {
+        selectEl.options[idx].selected = c.checked;
+      }
+    });
+
+    if (allCheck) {
+      allCheck.checked = checkedBoxes.length === itemChecks.length && itemChecks.length > 0;
+      allCheck.indeterminate = checkedBoxes.length > 0 && checkedBoxes.length < itemChecks.length;
+    }
+
+    if (lbl) {
+      if (checkedBoxes.length === 0) {
+        lbl.textContent = defaultLabel;
+      } else if (checkedBoxes.length === 1) {
+        const idx = parseInt(checkedBoxes[0].getAttribute("data-opt-index"), 10);
+        lbl.textContent = selectEl.options[idx] ? selectEl.options[idx].textContent : checkedBoxes[0].value;
+      } else if (checkedBoxes.length === itemChecks.length) {
+        lbl.textContent = defaultLabel;
+      } else {
+        lbl.textContent = `${checkedBoxes.length} seleccionados`;
+      }
+    }
+
+    if (triggerChange) {
+      selectEl.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+  }
+
+  if (allCheck) {
+    allCheck.onchange = (e) => {
+      const isChecked = e.target.checked;
+      itemChecks.forEach(c => { c.checked = isChecked; });
+      updateLabelAndSyncState(true);
+    };
+  }
+
+  itemChecks.forEach(c => {
+    c.onchange = () => {
+      updateLabelAndSyncState(true);
+    };
+  });
+
+  updateLabelAndSyncState(false);
+}
+
+function syncAllCustomMultiSelects() {
+  document.querySelectorAll("select.custom-select-multi").forEach(sel => {
+    syncCustomMultiSelect(sel);
+  });
+}
+
+document.addEventListener("click", (e) => {
+  document.querySelectorAll(".custom-dropdown-menu").forEach(menu => {
+    if (!menu.classList.contains("hidden")) {
+      const wrapper = menu.parentElement;
+      if (wrapper && !wrapper.contains(e.target)) {
+        menu.classList.add("hidden");
+      }
+    }
+  });
+});
+
+document.addEventListener("DOMContentLoaded", () => {
+  syncAllCustomMultiSelects();
+});
+
 // --- MODULO: INFORMACIÓN PRODUCTOS ---
 function initInfoProductosModule() {
   const tableBody = document.querySelector("#table-info-productos tbody");
@@ -8472,12 +8698,20 @@ function initInfoProductosModule() {
   const clearBtn = document.getElementById("btn-clear-info-prod-filters");
 
   function populateFilters() {
+    const selectedCats = Array.from(categorySelect.selectedOptions).map(o => o.value);
+    const prevSelectedProds = Array.from(productSelect.selectedOptions).map(o => o.value);
+    let filteredProds = State.products;
+    if (selectedCats.length > 0) {
+      filteredProds = State.products.filter(p => selectedCats.includes(p.category));
+    }
+    const sortedProds = [...filteredProds].sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
     let prodOptions = "";
-    const sortedProds = [...State.products].sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
     sortedProds.forEach(p => {
-      prodOptions += `<option value="${p.sku}">${p.name}</option>`;
+      const isSel = prevSelectedProds.includes(p.sku) ? "selected" : "";
+      prodOptions += `<option value="${p.sku}" ${isSel}>${p.name}</option>`;
     });
     productSelect.innerHTML = prodOptions;
+    syncAllCustomMultiSelects();
   }
 
   function renderTable() {
@@ -8537,7 +8771,10 @@ function initInfoProductosModule() {
   }
 
   searchInput.addEventListener("input", renderTable);
-  categorySelect.addEventListener("change", renderTable);
+  categorySelect.addEventListener("change", function() {
+    populateFilters();
+    renderTable();
+  });
   productSelect.addEventListener("change", renderTable);
 
   if (clearBtn) {
@@ -8546,7 +8783,9 @@ function initInfoProductosModule() {
       
       // Limpiar multiselects deseleccionando todas las opciones
       Array.from(categorySelect.options).forEach(o => o.selected = false);
+      populateFilters();
       Array.from(productSelect.options).forEach(o => o.selected = false);
+      syncAllCustomMultiSelects();
       
       renderTable();
     });
