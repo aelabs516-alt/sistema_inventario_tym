@@ -4440,6 +4440,14 @@ function renderDocumentsHistory() {
           <button class="btn btn-danger btn-sm btn-delete-doc" data-id="${doc.id}" data-type="${doc.docType}" title="Eliminar"><i data-lucide="trash"></i></button>
         `;
       }
+
+      if (doc.docType === "Facturación") {
+        actionButtons = `
+          <button class="btn btn-secondary btn-sm btn-view-doc" data-id="${doc.id}" data-type="${doc.docType}" title="Visualizar"><i data-lucide="eye"></i></button>
+          <button class="btn btn-secondary btn-sm btn-edit-factura-doc" data-id="${doc.id}" title="Editar"><i data-lucide="edit-2"></i></button>
+          <button class="btn btn-danger btn-sm btn-delete-doc" data-id="${doc.id}" data-type="${doc.docType}" title="Eliminar"><i data-lucide="trash"></i></button>
+        `;
+      }
     }
 
     let productText = "-";
@@ -4484,6 +4492,19 @@ function renderDocumentsHistory() {
       const id = this.getAttribute("data-id");
       const type = this.getAttribute("data-type");
       openDocumentDetailModal(id, type);
+    };
+  });
+
+  document.querySelectorAll(".btn-edit-factura-doc").forEach(btn => {
+    btn.onclick = async function() {
+      if (!State.activeUser || State.activeUser.role !== "Administrador") {
+        showCustomAlert("Solo un usuario con rol Administrador puede modificar o eliminar este documento.", "error");
+        return;
+      }
+      const id = this.getAttribute("data-id");
+      const navItem = document.querySelector(".sidebar-nav .nav-item[data-target='module-facturacion']");
+      if (navItem) navItem.click();
+      window.loadFacturaIntoForm(id);
     };
   });
 
@@ -7755,6 +7776,7 @@ attachIdCardInputFormat(document.getElementById("exit-shipping-cost"));
 // ==========================================================================
 let currentFacturaType = "Cotización";
 let facturacionItems = [];
+let editingFacturaId = null;
 
 const GARANTIA_NOTA_TEXT = `*1 AÑO DE GARANTÍA POR DEFECTOS DE FÁBRICA 
 
@@ -7762,7 +7784,41 @@ const GARANTIA_NOTA_TEXT = `*1 AÑO DE GARANTÍA POR DEFECTOS DE FÁBRICA
 
 *** Todo costo de transporte, fletes y envíos derivados de la prestación de servicios de garantía o mantenimiento preventivo/correctivo correrá por cuenta exclusiva del cliente. La empresa no asumirá costos de logística ni traslados bajo ninguna circunstancia.`;
 
+function resetFacturacionForm() {
+  editingFacturaId = null;
+  facturacionItems = [{
+    qty: 1,
+    desc: "",
+    unitPrice: 0,
+    discount: 0
+  }];
+  const formEl = document.getElementById("form-facturacion");
+  if (formEl) formEl.reset();
+  const ciudadSelect = document.getElementById("facturacion-ciudad");
+  if (ciudadSelect) {
+    ciudadSelect.innerHTML = '<option value="">Seleccione Ciudad...</option>';
+    ciudadSelect.disabled = true;
+  }
+  const retContainer = document.getElementById("container-facturacion-retencion");
+  if (retContainer) retContainer.style.display = "none";
+  const fechaInput = document.getElementById("facturacion-fecha");
+  if (fechaInput) fechaInput.value = new Date().toISOString().split("T")[0];
 
+  const btnDeleteDoc = document.getElementById("btn-delete-factura-doc");
+  const btnCancelEdit = document.getElementById("btn-cancel-edit-factura");
+  const btnExportar = document.getElementById("btn-export-factura");
+  if (btnDeleteDoc) btnDeleteDoc.classList.add("hidden");
+  if (btnCancelEdit) btnCancelEdit.classList.add("hidden");
+  if (btnExportar) {
+    btnExportar.disabled = false;
+    btnExportar.innerHTML = `<i data-lucide="download"></i> Generar y Exportar PDF`;
+  }
+
+  updateFacturacionHeader();
+  renderFacturacionItems();
+  updatePrintTemplate();
+  if (window.lucide) lucide.createIcons();
+}
 
 function formatFacturacionNumInput(input) {
   let val = input.value.replace(/\D/g, "");
@@ -7779,7 +7835,9 @@ function getUnformattedFacturacionNum(val) {
 }
 
 function initFacturacionModule() {
-  document.getElementById("facturacion-fecha").value = new Date().toISOString().split("T")[0];
+  if (!editingFacturaId) {
+    document.getElementById("facturacion-fecha").value = new Date().toISOString().split("T")[0];
+  }
   
   const deptoSelect = document.getElementById("facturacion-departamento");
   const ciudadSelect = document.getElementById("facturacion-ciudad");
@@ -7948,7 +8006,8 @@ function initFacturacionModule() {
   const searchInput = document.getElementById("facturacion-search-history");
   const searchResults = document.getElementById("facturacion-search-results");
 
-  if (searchInput && searchResults) {
+  if (searchInput && searchResults && !searchInput.dataset.bound) {
+    searchInput.dataset.bound = "true";
     searchInput.addEventListener("input", function() {
       const q = this.value.trim().toLowerCase();
       if (!q) {
@@ -7974,7 +8033,7 @@ function initFacturacionModule() {
         searchResults.classList.remove("hidden");
         lucide.createIcons();
       } else {
-        searchResults.innerHTML = `<div style="padding: 10px; color: #999; font-size: 12px; text-align: center;">No se encontraron facturas.</div>`;
+        searchResults.innerHTML = `<div style="padding: 10px; color: #999; font-size: 12px; text-align: center;">No se encontraron documentos.</div>`;
         searchResults.classList.remove("hidden");
       }
     });
@@ -7985,6 +8044,36 @@ function initFacturacionModule() {
       }
     });
   }
+
+  const btnCancelEdit = document.getElementById("btn-cancel-edit-factura");
+  if (btnCancelEdit && !btnCancelEdit.dataset.bound) {
+    btnCancelEdit.dataset.bound = "true";
+    btnCancelEdit.addEventListener("click", () => {
+      resetFacturacionForm();
+      showToast("Formulario listo para nuevo documento", "info");
+    });
+  }
+
+  const btnDeleteDoc = document.getElementById("btn-delete-factura-doc");
+  if (btnDeleteDoc && !btnDeleteDoc.dataset.bound) {
+    btnDeleteDoc.dataset.bound = "true";
+    btnDeleteDoc.addEventListener("click", async () => {
+      if (!editingFacturaId) return;
+      if (!State.activeUser || State.activeUser.role !== "Administrador") {
+        showCustomAlert("Solo un usuario con rol Administrador puede modificar o eliminar una Cotización, Pre-Factura o Factura.", "error");
+        return;
+      }
+      const idToDelete = editingFacturaId;
+      if (await showCustomConfirm(`¿Está seguro de eliminar el documento ${idToDelete} de forma permanente?`)) {
+        State.facturacion = State.facturacion.filter(d => d.id !== idToDelete);
+        State.save();
+        updateSummaryWidget();
+        renderDocumentsHistory();
+        resetFacturacionForm();
+        showCustomAlert(`Documento ${idToDelete} eliminado correctamente.`);
+      }
+    });
+  }
   
   updateFacturacionHeader();
   renderFacturacionItems();
@@ -7992,18 +8081,25 @@ function initFacturacionModule() {
 }
 
 window.loadFacturaIntoForm = function(id) {
+  if (!State.activeUser || State.activeUser.role !== "Administrador") {
+    showCustomAlert("Solo un usuario con rol Administrador puede modificar o eliminar una Cotización, Pre-Factura o Factura.", "error");
+    const searchResults = document.getElementById("facturacion-search-results");
+    if (searchResults) searchResults.classList.add("hidden");
+    return;
+  }
+
   const f = State.facturacion.find(d => d.id === id);
   if (!f) return;
+
+  editingFacturaId = f.id;
+  currentFacturaType = f.docType;
   
-  // Cambiar tipo de documento si es diferente (pero manteniendo el tipo actual seleccionado si se desea crear uno nuevo basado en este)
-  // Sin embargo, si lo que quiere es ver el mismo tipo, lo seleccionamos:
   document.querySelectorAll(".btn-doc-type").forEach(b => {
     b.classList.remove("btn-primary");
     b.classList.add("btn-secondary");
     if (b.getAttribute("data-type") === f.docType) {
       b.classList.remove("btn-secondary");
       b.classList.add("btn-primary");
-      currentFacturaType = f.docType;
     }
   });
   
@@ -8031,9 +8127,15 @@ window.loadFacturaIntoForm = function(id) {
         ciudadSelect.value = f.ciudad;
       }
     }
+  } else {
+    deptoSelect.value = "";
+    ciudadSelect.innerHTML = '<option value="">Seleccione Ciudad...</option>';
+    ciudadSelect.disabled = true;
   }
   
-  document.getElementById("facturacion-observaciones").value = f.observaciones || "";
+  const obsInput = document.getElementById("facturacion-observaciones");
+  obsInput.value = f.observaciones || "";
+  obsInput.dispatchEvent(new Event("input"));
   
   if (f.items && f.items.length > 0) {
     facturacionItems = f.items.map(i => ({
@@ -8042,50 +8144,72 @@ window.loadFacturaIntoForm = function(id) {
       unitPrice: i.unitPrice || 0,
       discount: i.discount || 0
     }));
+  } else {
+    facturacionItems = [{
+      qty: 1,
+      desc: "",
+      unitPrice: 0,
+      discount: 0
+    }];
   }
   
   const searchInput = document.getElementById("facturacion-search-history");
   if (searchInput) searchInput.value = "";
   document.getElementById("facturacion-search-results").classList.add("hidden");
   
-  // No sobreescribimos el consecutivo original al cargar, para que actúe como plantilla para una NUEVA factura.
-  // document.getElementById("facturacion-doc-title").innerHTML = `${f.docType} No. <span id="facturacion-consecutivo">${f.id}</span>`;
-  
+  const btnExportar = document.getElementById("btn-export-factura");
+  if (btnExportar) {
+    btnExportar.innerHTML = `<i data-lucide="save"></i> Guardar Cambios y Exportar PDF`;
+  }
+  const btnDeleteDoc = document.getElementById("btn-delete-factura-doc");
+  if (btnDeleteDoc) btnDeleteDoc.classList.remove("hidden");
+  const btnCancelEdit = document.getElementById("btn-cancel-edit-factura");
+  if (btnCancelEdit) btnCancelEdit.classList.remove("hidden");
+
+  updateFacturacionHeader();
   renderFacturacionItems();
   updatePrintTemplate();
-  showToast("Factura cargada en el formulario", "success");
+  if (window.lucide) lucide.createIcons();
+  showToast(`Editando ${f.docType} ${f.id}`, "success");
 };
 
 
 document.querySelectorAll(".btn-doc-type").forEach(btn => {
   btn.addEventListener("click", function() {
+    const selectedType = this.getAttribute("data-type");
+    if (editingFacturaId && selectedType !== currentFacturaType) {
+      showCustomAlert(`Está editando el documento ${editingFacturaId} (${currentFacturaType}). Los cambios se guardan sobre el mismo consecutivo. Si desea crear un documento nuevo, haga clic en "Nuevo / Cancelar".`, "warning");
+      return;
+    }
     document.querySelectorAll(".btn-doc-type").forEach(b => {
       b.classList.remove("btn-primary");
       b.classList.add("btn-secondary");
     });
     this.classList.remove("btn-secondary");
     this.classList.add("btn-primary");
-    currentFacturaType = this.getAttribute("data-type");
+    currentFacturaType = selectedType;
     updateFacturacionHeader();
     updatePrintTemplate();
   });
 });
 
 function updateFacturacionHeader() {
-  const filtered = State.facturacion.filter(f => f.docType === currentFacturaType);
-  let maxNum = 1000;
-  if (filtered.length > 0) {
-    const nums = filtered.map(f => {
-      const parts = f.id.split('-');
-      return parts.length > 1 ? parseInt(parts[1], 10) || 0 : 0;
-    });
-    maxNum = Math.max(1000, ...nums);
+  let consec = editingFacturaId;
+  if (!consec) {
+    const filtered = State.facturacion.filter(f => f.docType === currentFacturaType);
+    let maxNum = 1000;
+    if (filtered.length > 0) {
+      const nums = filtered.map(f => {
+        const parts = f.id.split('-');
+        return parts.length > 1 ? parseInt(parts[1], 10) || 0 : 0;
+      });
+      maxNum = Math.max(1000, ...nums);
+    }
+    const nextNum = maxNum + 1;
+    const prefix = currentFacturaType === "Cotización" ? "COT" : (currentFacturaType === "Pre-Factura" ? "PRE" : "FAC");
+    consec = `${prefix}-${String(nextNum).padStart(4, "0")}`;
   }
-  const nextNum = maxNum + 1;
-  const prefix = currentFacturaType === "Cotización" ? "COT" : (currentFacturaType === "Pre-Factura" ? "PRE" : "FAC");
-  const consec = `${prefix}-${String(nextNum).padStart(4, "0")}`;
   
-  document.getElementById("facturacion-consecutivo").textContent = consec;
   document.getElementById("facturacion-doc-title").innerHTML = `${currentFacturaType} No. <span id="facturacion-consecutivo">${consec}</span>`;
   
   const containerFE = document.getElementById("container-facturacion-fe");
@@ -8101,8 +8225,6 @@ function updateFacturacionHeader() {
       toggleFE.checked = false;
       toggleRet.checked = false;
       containerRet.style.display = "none";
-      // We should also remove the text from observations but let's let updatePrintTemplate or manual edit handle it,
-      // or we can just trigger the change event.
       toggleFE.dispatchEvent(new Event('change'));
     }
   }
@@ -8309,6 +8431,15 @@ document.getElementById("form-facturacion").addEventListener("submit", async fun
     return;
   }
 
+  const consecElement = editingFacturaId || document.getElementById("facturacion-consecutivo").textContent;
+  const existingIndex = State.facturacion.findIndex(f => f.id === consecElement);
+  const isEditingExisting = existingIndex !== -1;
+
+  if (isEditingExisting && (!State.activeUser || State.activeUser.role !== "Administrador")) {
+    showCustomAlert("Solo un usuario con rol Administrador puede modificar o eliminar una Cotización, Pre-Factura o Factura.", "error");
+    return;
+  }
+
   const btnExportar = document.getElementById("btn-export-factura");
   btnExportar.disabled = true;
   btnExportar.innerHTML = `<i data-lucide="loader" class="spin"></i> Generando PDF...`;
@@ -8319,7 +8450,6 @@ document.getElementById("form-facturacion").addEventListener("submit", async fun
   
   const fecha = document.getElementById("facturacion-fecha").value;
   const nombre = document.getElementById("facturacion-nombre").value.trim().toUpperCase();
-  const consecElement = document.getElementById("facturacion-consecutivo").textContent;
   
   const element = document.getElementById("factura-print-template");
   
@@ -8375,8 +8505,7 @@ document.getElementById("form-facturacion").addEventListener("submit", async fun
     total: totalPagar
   };
 
-  const existingIndex = State.facturacion.findIndex(f => f.id === consecElement);
-  if (existingIndex !== -1) {
+  if (isEditingExisting) {
     State.facturacion[existingIndex] = nuevoDoc;
   } else {
     State.facturacion.push(nuevoDoc);
@@ -8388,25 +8517,18 @@ document.getElementById("form-facturacion").addEventListener("submit", async fun
 
   try {
     await html2pdf().set(opt).from(clone).save();
-    showCustomAlert(`✅ ${currentFacturaType} registrada y exportada como PDF con éxito.`);
+    if (isEditingExisting) {
+      showCustomAlert(`✅ ${currentFacturaType} ${consecElement} actualizada y exportada como PDF con éxito.`);
+    } else {
+      showCustomAlert(`✅ ${currentFacturaType} ${consecElement} registrada y exportada como PDF con éxito.`);
+    }
   } catch (err) {
     console.error(err);
     showCustomAlert("⚠️ El documento se guardó en el historial, pero ocurrió un error al exportar el PDF. Puede re-exportarlo desde el Historial.");
   } finally {
     document.body.removeChild(tempContainer);
-    // Resetear formulario
-    facturacionItems = [{qty: 1, desc: "", unitPrice: 0, discount: 0}];
-    document.getElementById("form-facturacion").reset();
-    document.getElementById("container-facturacion-retencion").style.display = "none";
-    document.getElementById("facturacion-fecha").value = new Date().toISOString().split("T")[0];
-    updateFacturacionHeader();
-    renderFacturacionItems();
-    updatePrintTemplate();
+    resetFacturacionForm();
   }
-  
-  btnExportar.disabled = false;
-  btnExportar.innerHTML = `<i data-lucide="download"></i> Generar y Exportar PDF`;
-  lucide.createIcons();
 });
 
 // ==========================================================================

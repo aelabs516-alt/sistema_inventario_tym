@@ -207,6 +207,12 @@ def api_resource(request, resource_name, resource_id=None):
                     elif resource_name == 'garantias' and isinstance(data.get('evidence'), dict) and data['evidence'].get('data') == '__LAZY_IMAGE__':
                         data['evidence'] = existing_obj.data.get('evidence')
                 
+            if resource_name == 'facturacion' and model_class.objects.filter(id=resource_id).exists():
+                active_email = request.session.get('active_user_email')
+                active_user = AppUser.objects.filter(id=active_email).first()
+                if not active_user or not isinstance(active_user.data, dict) or active_user.data.get('role') != 'Administrador':
+                    return JsonResponse({'error': 'Solo un Administrador puede modificar este documento'}, status=403)
+
             model_class.objects.update_or_create(
                 id=resource_id,
                 defaults={'data': data}
@@ -218,6 +224,11 @@ def api_resource(request, resource_name, resource_id=None):
     elif request.method == "DELETE":
         if not resource_id:
             return JsonResponse({'error': 'Missing ID for deletion'}, status=400)
+        if resource_name == 'facturacion':
+            active_email = request.session.get('active_user_email')
+            active_user = AppUser.objects.filter(id=active_email).first()
+            if not active_user or not isinstance(active_user.data, dict) or active_user.data.get('role') != 'Administrador':
+                return JsonResponse({'error': 'Solo un Administrador puede eliminar este documento'}, status=403)
         model_class.objects.filter(id=resource_id).delete()
         return JsonResponse({'success': True})
         

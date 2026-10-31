@@ -1544,7 +1544,7 @@
                   <div class="form-group" style="margin-bottom: 0; position: relative;">
                     <div class="input-icon-wrapper">
                       <i data-lucide="search"></i>
-                      <input type="text" id="facturacion-search-history" placeholder="Buscar factura anterior por Nombre del cliente o Documento (NIT/CC)..." class="form-control">
+                      <input type="text" id="facturacion-search-history" placeholder="Buscar Cotización, Pre-Factura o Factura por Consecutivo, Cliente o NIT/CC..." class="form-control">
                     </div>
                     <div id="facturacion-search-results" class="search-results-dropdown hidden" style="position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #cbd5e1; border-radius: 4px; max-height: 250px; overflow-y: auto; z-index: 1000; box-shadow: 0 4px 10px rgba(0,0,0,0.1);"></div>
                   </div>
@@ -1685,7 +1685,11 @@
                   </div>
                 </div>
 
-                <button type="submit" id="btn-export-factura" class="btn btn-primary btn-lg" style="width: 100%;"><i data-lucide="download"></i> Generar y Exportar PDF</button>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                  <button type="submit" id="btn-export-factura" class="btn btn-primary btn-lg" style="flex: 1;"><i data-lucide="download"></i> Generar y Exportar PDF</button>
+                  <button type="button" id="btn-delete-factura-doc" class="btn btn-danger btn-lg hidden"><i data-lucide="trash-2"></i> Eliminar Documento</button>
+                  <button type="button" id="btn-cancel-edit-factura" class="btn btn-secondary btn-lg hidden"><i data-lucide="x"></i> Nuevo / Cancelar</button>
+                </div>
               </form>
             </div>
           <!-- COLUMNA DERECHA: VISUALIZADOR -->
@@ -2891,6 +2895,6 @@
 
   <!-- Script Principal -->
   <script src="colombia_geodata.js"></script>
-  <script src="app.js?v=4"></script>
+  <script src="app.js?v=5"></script>
 </body>
 </html>
