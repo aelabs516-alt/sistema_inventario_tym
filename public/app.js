@@ -28,6 +28,7 @@ const DEFAULT_PVE = [
   "Mercado Libre Flex",
   "Mercado Libre Full",
   "Bogotá Eladio",
+  "Bogotá Mediortopedicos",
   "Falabella",
   "Los Pinos"
 ];
@@ -200,6 +201,9 @@ async function fetchInitialState(triggerAppShow = true) {
     if (res.ok) {
       const data = await res.json();
       Object.assign(State, data);
+      if (!Array.isArray(State.pve) || State.pve.length === 0) {
+        State.pve = [...DEFAULT_PVE];
+      }
       
       previousStateSnapshot = JSON.parse(JSON.stringify(State));
       
@@ -537,6 +541,7 @@ function onModuleOpen(moduleId) {
   } else if (moduleId === "module-creacion") {
     renderProductsList();
     renderWarehouseList();
+    renderPveList();
     renderCarriersList();
     renderUsersList();
     renderSellersList();
@@ -626,6 +631,13 @@ function initModules() {
       const panels = document.querySelectorAll("#module-creacion .tab-panel");
       panels.forEach(p => p.classList.remove("active"));
       document.getElementById(targetTab).classList.add("active");
+
+      if (targetTab === "tab-productos") renderProductsList();
+      else if (targetTab === "tab-bodegas") renderWarehouseList();
+      else if (targetTab === "tab-puntos-venta") renderPveList();
+      else if (targetTab === "tab-transportadoras") renderCarriersList();
+      else if (targetTab === "tab-usuarios") renderUsersList();
+      else if (targetTab === "tab-vendedores") renderSellersList();
     };
   });
 
@@ -849,6 +861,9 @@ function initModules() {
 
     State.save();
     renderPveList();
+    updateExitPveOptions();
+    initDashboardFilters();
+    initDocsPveFilter();
     e.target.reset();
     
     // Resetear formulario a su estado de registro
@@ -1366,6 +1381,9 @@ function renderPveList() {
         State.pve = State.pve.filter(item => item !== name);
         State.save();
         renderPveList();
+        updateExitPveOptions();
+        initDashboardFilters();
+        initDocsPveFilter();
       }
     };
   });
@@ -1907,39 +1925,37 @@ function resetStockExitForm() {
 
 function updateExitPveOptions() {
   const whSelect = document.getElementById("exit-warehouse-global");
-  const wh = (whSelect.value || "").trim().toLowerCase();
   const pveSelect = document.getElementById("exit-pve");
+  if (!whSelect || !pveSelect) return;
+
+  const normStr = str => (str || "").trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const whNorm = normStr(whSelect.value);
 
   // Almacenar el valor seleccionado actual si lo hay
   const prevVal = pveSelect.value;
 
   let allowed = [];
-  if (wh === "bogotá eladio" || wh === "bogota eladio") {
-    allowed = State.pve.filter(pv => {
-      const p = pv.trim().toLowerCase();
-      return p === "bogotá eladio" || p === "bogota eladio";
-    });
-  } else if (wh === "mercado libre full") {
-    allowed = State.pve.filter(pv => pv.trim().toLowerCase() === "mercado libre full");
+  if (whNorm === "bogota eladio") {
+    allowed = State.pve.filter(pv => normStr(pv) === "bogota eladio");
+    if (allowed.length === 0) allowed = ["Bogotá Eladio"];
+  } else if (whNorm === "mercado libre full") {
+    allowed = State.pve.filter(pv => normStr(pv) === "mercado libre full");
+    if (allowed.length === 0) allowed = ["Mercado Libre Full"];
+  } else if (whNorm === "bogota mediortopedicos") {
+    allowed = State.pve.filter(pv => normStr(pv) === "bogota mediortopedicos");
+    if (allowed.length === 0) allowed = ["Bogotá Mediortopedicos"];
   } else {
-    // Grupo por defecto: todos los PVEs excepto Bogotá Eladio y Mercado Libre Full
-    const targetNames = [
-      "falabella",
-      "local",
-      "mastershop",
-      "mercado libre flex",
-      "mercado libre despacho",
-      "descuento nómina",
-      "descuento nomina",
-      "los pinos"
-    ];
-    allowed = State.pve.filter(pv => targetNames.includes(pv.trim().toLowerCase()));
+    // Grupo por defecto: todos los PVEs creados en el sistema excepto los exclusivos de bodega
+    const exclusivePves = ["bogota eladio", "mercado libre full", "bogota mediortopedicos"];
+    allowed = State.pve.filter(pv => !exclusivePves.includes(normStr(pv)));
   }
 
   pveSelect.innerHTML = allowed.map(pv => `<option value="${pv}">${pv}</option>`).join("");
 
   if (prevVal && allowed.includes(prevVal)) {
     pveSelect.value = prevVal;
+  } else if (allowed.length > 0) {
+    pveSelect.value = allowed[0];
   }
 }
 
