@@ -473,12 +473,12 @@ function applyRolePermissions() {
     let isVisible = true;
 
     if (role === "Ventas") {
-      // Ventas: Salida Mercancía, Dashboard, Stock Global, Stock, Documentos Creados, Rótulos
-      const allowed = ["module-dashboard", "module-salida", "module-stock", "module-stock-basic", "module-documentos", "module-rotulos"];
+      // Ventas: Salida Mercancía, Dashboard, Stock Global, Stock, Documentos Creados, Rótulos, Facturación
+      const allowed = ["module-dashboard", "module-salida", "module-stock", "module-stock-basic", "module-documentos", "module-rotulos", "module-facturacion"];
       isVisible = allowed.includes(target);
     } else if (role === "Visualización") {
-      // Visualización: Dashboard, Stock Global, Stock
-      const allowed = ["module-dashboard", "module-stock", "module-stock-basic"];
+      // Visualización: Dashboard, Stock Global, Stock, Facturación
+      const allowed = ["module-dashboard", "module-stock", "module-stock-basic", "module-facturacion"];
       isVisible = allowed.includes(target);
     } else if (role === "Personalizado") {
       // Personalizado: según perms configurados
@@ -4843,9 +4843,9 @@ function openDocumentDetailModal(id, type) {
                   <tr>
                     <td style="padding: 6px; border: 1px solid #7393a7; text-align: center;">${item.qty}</td>
                     <td style="padding: 6px; border: 1px solid #7393a7; text-transform: uppercase;">${item.desc}</td>
-                    <td style="padding: 6px; border: 1px solid #7393a7; text-align: right;">${formatCurrency(item.unitPrice)}</td>
-                    <td style="padding: 6px; border: 1px solid #7393a7; text-align: right;">${formatCurrency(item.discount)}</td>
-                    <td style="padding: 6px; border: 1px solid #7393a7; text-align: right; font-weight: bold;">${formatCurrency(tot)}</td>
+                    <td style="padding: 6px; border: 1px solid #7393a7; text-align: right;">$ ${Math.round(item.unitPrice || 0).toLocaleString("es-CO")}</td>
+                    <td style="padding: 6px; border: 1px solid #7393a7; text-align: right;">$ ${Math.round(item.discount || 0).toLocaleString("es-CO")}</td>
+                    <td style="padding: 6px; border: 1px solid #7393a7; text-align: right; font-weight: bold;">$ ${Math.round(tot || 0).toLocaleString("es-CO")}</td>
                   </tr>
                 `;
               }).join("") : `<tr><td colspan="5" style="text-align: center; padding: 10px; color: #999;">Detalles de ítems no disponibles para este registro antiguo.</td></tr>`}
@@ -4862,15 +4862,15 @@ function openDocumentDetailModal(id, type) {
               <table style="width: 100%; border-collapse: collapse;">
                 <tr>
                   <td style="padding: 3px; text-align: right; font-weight: bold;">TOTAL</td>
-                  <td style="padding: 3px; text-align: right; border: 1px solid #7393a7; background-color: #0f4c5c; color: white; width: 100px;">${formatCurrency(subtotalCalc)}</td>
+                  <td style="padding: 3px; text-align: right; border: 1px solid #7393a7; background-color: #0f4c5c; color: white; width: 100px;">$ ${Math.round(subtotalCalc || 0).toLocaleString("es-CO")}</td>
                 </tr>
                 <tr>
                   <td style="padding: 3px; text-align: right; font-weight: bold;">Descuento</td>
-                  <td style="padding: 3px; text-align: right; border: 1px solid #7393a7;">${formatCurrency(totalDctoCalc)}</td>
+                  <td style="padding: 3px; text-align: right; border: 1px solid #7393a7;">$ ${Math.round(totalDctoCalc || 0).toLocaleString("es-CO")}</td>
                 </tr>
                 <tr>
                   <td style="padding: 3px; text-align: right; font-weight: bold;">TOTAL A PAGAR</td>
-                  <td style="padding: 3px; text-align: right; border: 1px solid #7393a7; background-color: #0f4c5c; color: white;">${formatCurrency(doc.total)}</td>
+                  <td style="padding: 3px; text-align: right; border: 1px solid #7393a7; background-color: #0f4c5c; color: white;">$ ${Math.round(doc.total || 0).toLocaleString("es-CO")}</td>
                 </tr>
               </table>
             </div>
@@ -7859,6 +7859,7 @@ attachIdCardInputFormat(document.getElementById("exit-shipping-cost"));
 let currentFacturaType = "Cotización";
 let facturacionItems = [];
 let editingFacturaId = null;
+let isViewingFacturaReadOnly = false;
 
 const GARANTIA_NOTA_TEXT = `*1 AÑO DE GARANTÍA POR DEFECTOS DE FÁBRICA 
 
@@ -7866,8 +7867,42 @@ const GARANTIA_NOTA_TEXT = `*1 AÑO DE GARANTÍA POR DEFECTOS DE FÁBRICA
 
 *** Todo costo de transporte, fletes y envíos derivados de la prestación de servicios de garantía o mantenimiento preventivo/correctivo correrá por cuenta exclusiva del cliente. La empresa no asumirá costos de logística ni traslados bajo ninguna circunstancia.`;
 
+function setFacturacionFormReadOnly(readOnly) {
+  isViewingFacturaReadOnly = Boolean(readOnly);
+  const fieldIds = [
+    "facturacion-fecha",
+    "facturacion-nombre",
+    "facturacion-nit",
+    "facturacion-direccion",
+    "facturacion-telefono",
+    "facturacion-departamento",
+    "facturacion-correo",
+    "facturacion-observaciones",
+    "facturacion-toggle-garantia",
+    "facturacion-toggle-fe",
+    "facturacion-toggle-retencion"
+  ];
+  fieldIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.disabled = isViewingFacturaReadOnly;
+  });
+
+  const ciudadSelect = document.getElementById("facturacion-ciudad");
+  const deptoSelect = document.getElementById("facturacion-departamento");
+  if (ciudadSelect) {
+    ciudadSelect.disabled = isViewingFacturaReadOnly || !(deptoSelect && deptoSelect.value);
+  }
+
+  const btnAddRow = document.getElementById("btn-add-factura-row");
+  if (btnAddRow) {
+    btnAddRow.disabled = isViewingFacturaReadOnly;
+    btnAddRow.style.display = isViewingFacturaReadOnly ? "none" : "";
+  }
+}
+
 function resetFacturacionForm() {
   editingFacturaId = null;
+  setFacturacionFormReadOnly(false);
   facturacionItems = [{
     qty: 1,
     desc: "",
@@ -7890,8 +7925,12 @@ function resetFacturacionForm() {
   const btnCancelEdit = document.getElementById("btn-cancel-edit-factura");
   const btnExportar = document.getElementById("btn-export-factura");
   if (btnDeleteDoc) btnDeleteDoc.classList.add("hidden");
-  if (btnCancelEdit) btnCancelEdit.classList.add("hidden");
+  if (btnCancelEdit) {
+    btnCancelEdit.classList.add("hidden");
+    btnCancelEdit.innerHTML = `<i data-lucide="x-circle"></i> Nuevo / Cancelar`;
+  }
   if (btnExportar) {
+    btnExportar.classList.remove("hidden");
     btnExportar.disabled = false;
     btnExportar.innerHTML = `<i data-lucide="download"></i> Generar y Exportar PDF`;
   }
@@ -8163,15 +8202,10 @@ function initFacturacionModule() {
 }
 
 window.loadFacturaIntoForm = function(id) {
-  if (!State.activeUser || State.activeUser.role !== "Administrador") {
-    showCustomAlert("Solo un usuario con rol Administrador puede modificar o eliminar una Cotización, Pre-Factura o Factura.", "error");
-    const searchResults = document.getElementById("facturacion-search-results");
-    if (searchResults) searchResults.classList.add("hidden");
-    return;
-  }
-
   const f = State.facturacion.find(d => d.id === id);
   if (!f) return;
+
+  const isAdmin = Boolean(State.activeUser && State.activeUser.role === "Administrador");
 
   editingFacturaId = f.id;
   currentFacturaType = f.docType;
@@ -8240,26 +8274,46 @@ window.loadFacturaIntoForm = function(id) {
   document.getElementById("facturacion-search-results").classList.add("hidden");
   
   const btnExportar = document.getElementById("btn-export-factura");
-  if (btnExportar) {
-    btnExportar.innerHTML = `<i data-lucide="save"></i> Guardar Cambios y Exportar PDF`;
-  }
   const btnDeleteDoc = document.getElementById("btn-delete-factura-doc");
-  if (btnDeleteDoc) btnDeleteDoc.classList.remove("hidden");
   const btnCancelEdit = document.getElementById("btn-cancel-edit-factura");
-  if (btnCancelEdit) btnCancelEdit.classList.remove("hidden");
+
+  if (isAdmin) {
+    setFacturacionFormReadOnly(false);
+    if (btnExportar) {
+      btnExportar.classList.remove("hidden");
+      btnExportar.disabled = false;
+      btnExportar.innerHTML = `<i data-lucide="save"></i> Guardar Cambios y Exportar PDF`;
+    }
+    if (btnDeleteDoc) btnDeleteDoc.classList.remove("hidden");
+    if (btnCancelEdit) {
+      btnCancelEdit.classList.remove("hidden");
+      btnCancelEdit.innerHTML = `<i data-lucide="x-circle"></i> Nuevo / Cancelar`;
+    }
+    showToast(`Editando ${f.docType} ${f.id}`, "success");
+  } else {
+    setFacturacionFormReadOnly(true);
+    if (btnExportar) btnExportar.classList.add("hidden");
+    if (btnDeleteDoc) btnDeleteDoc.classList.add("hidden");
+    if (btnCancelEdit) {
+      btnCancelEdit.classList.remove("hidden");
+      btnCancelEdit.innerHTML = `<i data-lucide="plus-circle"></i> Crear Nuevo Documento`;
+    }
+    showToast(`Visualizando ${f.docType} ${f.id} (Solo lectura)`, "info");
+  }
 
   updateFacturacionHeader();
   renderFacturacionItems();
   updatePrintTemplate();
   if (window.lucide) lucide.createIcons();
-  showToast(`Editando ${f.docType} ${f.id}`, "success");
 };
 
 
 document.querySelectorAll(".btn-doc-type").forEach(btn => {
   btn.addEventListener("click", function() {
     const selectedType = this.getAttribute("data-type");
-    if (editingFacturaId && selectedType !== currentFacturaType) {
+    if (isViewingFacturaReadOnly) {
+      resetFacturacionForm();
+    } else if (editingFacturaId && selectedType !== currentFacturaType) {
       showCustomAlert(`Está editando el documento ${editingFacturaId} (${currentFacturaType}). Los cambios se guardan sobre el mismo consecutivo. Si desea crear un documento nuevo, haga clic en "Nuevo / Cancelar".`, "warning");
       return;
     }
@@ -8315,6 +8369,7 @@ function updateFacturacionHeader() {
 }
 
 document.getElementById("btn-add-factura-row").addEventListener("click", () => {
+  if (isViewingFacturaReadOnly) return;
   facturacionItems.push({
     qty: 1,
     desc: "",
@@ -8334,6 +8389,7 @@ function renderFacturacionItems() {
 
   const sortedProducts = [...State.products].sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
   const productOptions = sortedProducts.map(p => `<option value="${p.name}">${p.name}</option>`).join("");
+  const disabledAttr = isViewingFacturaReadOnly ? "disabled" : "";
 
   facturacionItems.forEach((item, index) => {
     const itemTotal = item.qty * (item.unitPrice - item.discount);
@@ -8342,9 +8398,9 @@ function renderFacturacionItems() {
 
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td><input type="number" class="form-control item-qty" value="${item.qty}" min="1" data-index="${index}"></td>
+      <td><input type="number" class="form-control item-qty" value="${item.qty}" min="1" data-index="${index}" ${disabledAttr}></td>
       <td>
-        <select class="form-control item-desc" data-index="${index}">
+        <select class="form-control item-desc" data-index="${index}" ${disabledAttr}>
           <option value="">Seleccione producto...</option>
           ${productOptions}
         </select>
@@ -8352,24 +8408,33 @@ function renderFacturacionItems() {
       <td>
         <div class="input-icon-wrapper">
           <i data-lucide="dollar-sign" style="width: 14px; height: 14px;"></i>
-          <input type="text" class="form-control item-price" value="${item.unitPrice ? item.unitPrice.toLocaleString('es-CO') : ''}" placeholder="0" data-index="${index}" style="padding-left: 30px;">
+          <input type="text" class="form-control item-price" value="${item.unitPrice ? item.unitPrice.toLocaleString('es-CO') : ''}" placeholder="0" data-index="${index}" style="padding-left: 30px;" ${disabledAttr}>
         </div>
       </td>
       <td>
         <div class="input-icon-wrapper">
           <i data-lucide="dollar-sign" style="width: 14px; height: 14px;"></i>
-          <input type="text" class="form-control item-dcto" value="${item.discount ? item.discount.toLocaleString('es-CO') : ''}" placeholder="0" data-index="${index}" style="padding-left: 30px;">
+          <input type="text" class="form-control item-dcto" value="${item.discount ? item.discount.toLocaleString('es-CO') : ''}" placeholder="0" data-index="${index}" style="padding-left: 30px;" ${disabledAttr}>
         </div>
       </td>
       <td style="vertical-align: middle; font-weight: bold; text-align: right;">$ ${itemTotal.toLocaleString("es-CO")}</td>
       <td style="vertical-align: middle;">
-        <button type="button" class="btn btn-danger btn-sm btn-del-factura-row" data-index="${index}"><i data-lucide="trash"></i></button>
+        ${isViewingFacturaReadOnly ? '' : `<button type="button" class="btn btn-danger btn-sm btn-del-factura-row" data-index="${index}"><i data-lucide="trash"></i></button>`}
       </td>
     `;
     tbody.appendChild(tr);
 
     if (item.desc) {
-      tr.querySelector(".item-desc").value = item.desc;
+      const sel = tr.querySelector(".item-desc");
+      if (sel) {
+        if (!sel.querySelector(`option[value="${item.desc}"]`)) {
+          const opt = document.createElement("option");
+          opt.value = item.desc;
+          opt.textContent = item.desc;
+          sel.appendChild(opt);
+        }
+        sel.value = item.desc;
+      }
     }
   });
 
