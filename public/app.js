@@ -4441,10 +4441,10 @@ function renderDocumentsHistory() {
         <button class="btn btn-danger btn-sm btn-delete-doc" data-id="${doc.id}" data-type="${doc.docType}" title="Eliminar"><i data-lucide="trash"></i></button>
       `;
 
-      if (doc.docType === "Ingreso") {
+      if (doc.docType === "Ingreso" || doc.docType === "Salida") {
         actionButtons = `
           <button class="btn btn-secondary btn-sm btn-view-doc" data-id="${doc.id}" data-type="${doc.docType}" title="Visualizar"><i data-lucide="eye"></i></button>
-          <button class="btn btn-secondary btn-sm btn-edit-ingreso-serials" data-id="${doc.id}" title="Editar Seriales"><i data-lucide="edit-3"></i></button>
+          <button class="btn btn-secondary btn-sm btn-edit-ingreso-serials" data-id="${doc.id}" data-type="${doc.docType}" title="Editar"><i data-lucide="edit-2"></i></button>
           <button class="btn btn-danger btn-sm btn-delete-doc" data-id="${doc.id}" data-type="${doc.docType}" title="Eliminar"><i data-lucide="trash"></i></button>
         `;
       }
@@ -4560,7 +4560,8 @@ function renderDocumentsHistory() {
         return;
       }
       const id = this.getAttribute("data-id");
-      openEditIngresoSerialsListModal(id);
+      const type = this.getAttribute("data-type") || "Ingreso";
+      openEditIngresoSerialsListModal(id, type);
     };
   });
 
@@ -4612,42 +4613,107 @@ document.getElementById("search-docs-input").addEventListener("input", renderDoc
 document.getElementById("search-docs-product").addEventListener("input", renderDocumentsHistory);
 document.getElementById("filter-docs-type").onchange = renderDocumentsHistory;
 
-function openEditIngresoSerialsListModal(id) {
-  const doc = State.ingresos.find(d => d.id === id);
+function openEditIngresoSerialsListModal(id, type = "Ingreso") {
+  const isSalida = type === "Salida" || (id && String(id).startsWith("SAL-"));
+  const doc = isSalida ? State.salidas.find(d => d.id === id) : State.ingresos.find(d => d.id === id);
   if (!doc) return;
   
+  const titleEl = document.getElementById("modal-edit-doc-title");
+  if (titleEl) {
+    titleEl.textContent = `Editar ${isSalida ? "Salida" : "Ingreso"}: ${doc.id}`;
+  }
+
   const tbody = document.getElementById("edit-ingreso-list-tbody");
   tbody.innerHTML = "";
   
-  let hasMeItems = false;
-  
-  if (doc.items) {
+  if (doc.items && doc.items.length > 0) {
     doc.items.forEach((item, index) => {
       const p = State.products.find(prod => prod.sku === item.sku);
-      if (p && p.category === "ME") {
-        hasMeItems = true;
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${item.sku}</td>
-          <td>${item.qty}</td>
-          <td><button class="btn btn-primary btn-sm btn-edit-this-serial">Editar Seriales</button></td>
-        `;
+      const prodName = item.name || (p ? p.name : "-");
+      const prodCat = item.category || (p ? p.category : "-");
+      const isMe = prodCat === "ME";
+
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td><span class="text-bold">${item.sku}</span></td>
+        <td>${prodName}</td>
+        <td><span class="badge badge-teal">${prodCat}</span></td>
+        <td>
+          <input type="number" min="1" class="edit-doc-qty-input" data-index="${index}" value="${item.qty}" style="width: 90px; padding: 6px 8px; text-align: center; font-weight: 600;">
+        </td>
+        <td>
+          ${isMe ? `<button type="button" class="btn btn-secondary btn-sm btn-edit-this-serial">Editar Seriales</button>` : `<span class="text-muted">-</span>`}
+        </td>
+      `;
+
+      if (isMe && p) {
         tr.querySelector(".btn-edit-this-serial").onclick = function() {
-          openAssignSerialsModal(p, item.qty, function(newSerials) {
+          const qtyInput = tr.querySelector(".edit-doc-qty-input");
+          const targetQty = parseInt(qtyInput.value, 10) || item.qty;
+          if (targetQty <= 0) {
+            showCustomAlert("Ingrese una cantidad válida mayor a 0.");
+            return;
+          }
+          openAssignSerialsModal(p, targetQty, function(newSerials) {
+            item.qty = targetQty;
             item.serials = newSerials;
+            if (isSalida) {
+              doc.ean = doc.items.flatMap(i => i.serials || []).join(", ");
+            }
             State.save();
+            updateSummaryWidget();
             renderDocumentsHistory();
-            showCustomAlert("Seriales actualizados correctamente.");
-            document.getElementById("modal-edit-ingreso-list").classList.add("hidden");
+            renderStockProjectionsTable();
+            renderStockBasicTable();
+            renderDashboardCharts();
+            showCustomAlert("Seriales y cantidad actualizados correctamente.");
           }, item.serials || []);
         };
-        tbody.appendChild(tr);
       }
+
+      tbody.appendChild(tr);
     });
+  } else {
+    tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">Este documento no contiene productos registrados.</td></tr>`;
   }
-  
-  if (!hasMeItems) {
-    tbody.innerHTML = `<tr><td colspan="3" class="text-center text-muted">Este ingreso no contiene productos de categoría ME.</td></tr>`;
+
+  const saveBtn = document.getElementById("btn-save-edit-doc-items");
+  if (saveBtn) {
+    saveBtn.onclick = function() {
+      const inputs = tbody.querySelectorAll(".edit-doc-qty-input");
+      const newQtys = [];
+      for (const inp of inputs) {
+        const idx = parseInt(inp.getAttribute("data-index"), 10);
+        const val = parseInt(inp.value, 10);
+        if (isNaN(val) || val <= 0) {
+          showCustomAlert("Todas las cantidades deben ser números mayores a 0.");
+          return;
+        }
+        newQtys.push({ idx, val });
+      }
+
+      newQtys.forEach(({ idx, val }) => {
+        if (doc.items[idx]) {
+          doc.items[idx].qty = val;
+          if (Array.isArray(doc.items[idx].serials) && doc.items[idx].serials.length > val) {
+            doc.items[idx].serials = doc.items[idx].serials.slice(0, val);
+          }
+        }
+      });
+
+      if (isSalida) {
+        doc.ean = doc.items.flatMap(i => i.serials || []).join(", ");
+      }
+
+      State.save();
+      updateSummaryWidget();
+      renderDocumentsHistory();
+      renderStockProjectionsTable();
+      renderStockBasicTable();
+      renderDashboardCharts();
+      document.getElementById("modal-edit-ingreso-list").classList.add("hidden");
+      showCustomAlert(`✅ Documento ${doc.id} actualizado. Los cambios ya se reflejan en el inventario del sistema.`);
+    };
   }
   
   document.getElementById("modal-edit-ingreso-list").classList.remove("hidden");
