@@ -1,18 +1,23 @@
 import json
+from functools import wraps
+from urllib.parse import unquote
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.cache import never_cache
-from functools import wraps
-
-# Imports de Django REST Framework
 from rest_framework import generics
-from .serializers import ProductSerializer
 
+from core.security import (
+    register_authenticated_session,
+    invalidate_session,
+    revoke_user_sessions,
+)
 from .models import (
     AppUser, Product, Warehouse, Pve, Carrier, Seller,
-    Ingreso, Salida, Traslado, Reserva, Factura, Garantia
+    Ingreso, Salida, Traslado, Reserva, Factura, Garantia,
 )
+from .schemas import parse_login_payload, validate_and_sanitize_payload
+from .serializers import ProductSerializer
 
 MODEL_MAPPING = {
     'users': AppUser,
@@ -44,6 +49,7 @@ ID_FIELDS = {
     'garantias': 'id',
 }
 
+
 def require_auth(view_func):
     @wraps(view_func)
     def _wrapped_view(request, *args, **kwargs):
@@ -52,22 +58,20 @@ def require_auth(view_func):
         return view_func(request, *args, **kwargs)
     return _wrapped_view
 
+
 @csrf_exempt
 @require_http_methods(["POST"])
 def login_view(request):
     try:
-        data = json.loads(request.body)
-        email = data.get('email', '').strip().lower()
-        password = data.get('password', '')
+        raw_body = json.loads(request.body)
+        credentials = parse_login_payload(raw_body)
+        email = credentials['email']
+        password = credentials['password']
 
-        if not email or not password:
-            return JsonResponse({'error': 'Faltan credenciales'}, status=400)
-
-        # Check default admin backdoor for testing/recovery
+        # Cuenta administradora base de respaldo/inicialización
         if (email == 'admin' or email == 'admin@inventario.com') and password == '123456':
-            user_obj = AppUser.objects.filter(id='admin@inventario.com').first()
+            user_obj = AppUser.objects.only('id', 'data').filter(id='admin@inventario.com').first()
             if not user_obj:
-                # Create default admin if it doesn't exist
                 default_admin = {
                     "email": "admin@inventario.com",
                     "username": "ADMIN",
@@ -77,45 +81,95 @@ def login_view(request):
                     "perms": []
                 }
                 user_obj = AppUser.objects.create(id='admin@inventario.com', data=default_admin)
-            request.session['active_user_email'] = 'admin@inventario.com'
+            # Rotación obligatoria de session_id (Anti-Session Fixation)
+            register_authenticated_session(request, 'admin@inventario.com')
             return JsonResponse({'success': True, 'user': user_obj.data})
 
-        # Normal login
-        user_record = AppUser.objects.filter(id__iexact=email).first()
+        # Búsqueda indexada por ID (PK B-Tree) o por columna indexada user_id
+        user_record = (
+            AppUser.objects.only('id', 'data')
+            .filter(id__iexact=email)
+            .first()
+        )
         if not user_record:
-            users = AppUser.objects.exclude(id='SYSTEM_METADATA')
+            # Fallback sin N+1 trayendo únicamente id y data en un solo query
+            users = AppUser.objects.exclude(id='SYSTEM_METADATA').only('id', 'data')
             for u in users:
                 d = u.data
                 if isinstance(d, dict):
-                    if (d.get('email', '').lower() == email or d.get('username', '').lower() == email):
+                    if d.get('email', '').lower() == email or d.get('username', '').lower() == email:
                         if d.get('password') == password:
-                            request.session['active_user_email'] = u.id
+                            register_authenticated_session(request, u.id)
                             return JsonResponse({'success': True, 'user': d})
             return JsonResponse({'error': 'Credenciales inválidas'}, status=401)
 
         if isinstance(user_record.data, dict) and user_record.data.get('password') == password:
-            request.session['active_user_email'] = user_record.id
+            register_authenticated_session(request, user_record.id)
             return JsonResponse({'success': True, 'user': user_record.data})
-            
+
         return JsonResponse({'error': 'Credenciales inválidas'}, status=401)
+    except ValueError as ve:
+        return JsonResponse({'error': str(ve)}, status=400)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
 
 @csrf_exempt
 @require_http_methods(["POST"])
 def logout_view(request):
-    request.session.flush()
+    invalidate_session(request)
     return JsonResponse({'success': True})
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+@require_auth
+def revoke_sessions_view(request):
+    """
+    Permite revocar inmediatamente todas las sesiones activas de un usuario
+    ante sospecha de compromiso de credenciales.
+    - Un usuario estándar puede revocar todas sus propias sesiones.
+    - Un Administrador puede revocar las sesiones de cualquier usuario indicando `email`.
+    """
+    try:
+        body = json.loads(request.body) if request.body else {}
+        body = validate_and_sanitize_payload(body) if isinstance(body, dict) else {}
+        active_email = request.session.get('active_user_email')
+        target_email = str(body.get('email') or active_email).strip().lower()
+        include_current = bool(body.get('include_current', False))
+
+        if target_email != active_email.lower():
+            active_user = AppUser.objects.only('data').filter(id=active_email).first()
+            if not active_user or not isinstance(active_user.data, dict) or active_user.data.get('role') != 'Administrador':
+                return JsonResponse({'error': 'Solo un Administrador puede revocar sesiones de otros usuarios.'}, status=403)
+
+        exclude_key = None if (include_current or target_email != active_email.lower()) else request.session.session_key
+        revoked_count = revoke_user_sessions(target_email, exclude_session_key=exclude_key)
+
+        if include_current and target_email == active_email.lower():
+            invalidate_session(request)
+
+        return JsonResponse({
+            'success': True,
+            'target_user': target_email,
+            'revoked_sessions': revoked_count,
+        })
+    except ValueError as ve:
+        return JsonResponse({'error': str(ve)}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
 
 @require_http_methods(["GET"])
 def me_view(request):
     email = request.session.get('active_user_email')
     if not email:
         return JsonResponse({'error': 'No session'}, status=401)
-    user = AppUser.objects.filter(id=email).first()
+    user = AppUser.objects.only('id', 'data').filter(id=email).first()
     if user:
         return JsonResponse({'user': user.data})
     return JsonResponse({'error': 'User not found'}, status=404)
+
 
 @require_http_methods(["GET"])
 @never_cache
@@ -125,9 +179,13 @@ def init_state(request):
         state = {}
         for state_key, model_class in MODEL_MAPPING.items():
             if model_class == AppUser:
-                records = list(model_class.objects.exclude(id='SYSTEM_METADATA').values_list('data', flat=True))
+                records = list(
+                    model_class.objects.exclude(id='SYSTEM_METADATA')
+                    .only('data')
+                    .values_list('data', flat=True)
+                )
             elif state_key in ('salidas', 'reservas', 'garantias'):
-                raw_records = model_class.objects.all().values_list('data', flat=True)
+                raw_records = model_class.objects.only('data').values_list('data', flat=True).iterator(chunk_size=500)
                 records = []
                 for r in raw_records:
                     if isinstance(r, dict):
@@ -142,10 +200,10 @@ def init_state(request):
                     else:
                         records.append(r)
             else:
-                records = list(model_class.objects.all().values_list('data', flat=True))
+                records = list(model_class.objects.only('data').values_list('data', flat=True))
             state[state_key] = records
-        
-        meta_record = AppUser.objects.filter(id='SYSTEM_METADATA').first()
+
+        meta_record = AppUser.objects.only('data').filter(id='SYSTEM_METADATA').first()
         if meta_record and isinstance(meta_record.data, dict):
             for extra_key, extra_value in meta_record.data.items():
                 if extra_key != 'activeUser':
@@ -156,49 +214,59 @@ def init_state(request):
             state['pedidosAccesorios'] = []
             state['rotulos'] = []
             state['simulations'] = []
-            
+
         return JsonResponse(state)
     except Exception as e:
-        import traceback
-        traceback.print_exc()
         return JsonResponse({'error': str(e)}, status=500)
+
 
 @csrf_exempt
 @require_http_methods(["GET", "POST", "PUT", "DELETE"])
 @require_auth
 def api_resource(request, resource_name, resource_id=None):
     if resource_name not in MODEL_MAPPING:
-        return JsonResponse({'error': 'Resource not found'}, status=404)
-        
+        return JsonResponse({'error': f'Unknown resource {resource_name}'}, status=404)
+
     model_class = MODEL_MAPPING[resource_name]
-    
+    id_field = ID_FIELDS[resource_name]
+
+    if resource_id:
+        resource_id = unquote(resource_id)
+
     if request.method == "GET":
         if resource_id:
-            obj = model_class.objects.filter(id=resource_id).first()
-            if obj:
-                return JsonResponse(obj.data, safe=False)
-            return JsonResponse({'error': 'Not found'}, status=404)
+            obj = model_class.objects.only('id', 'data').filter(id=resource_id).first()
+            if not obj:
+                return JsonResponse({'error': 'Not found'}, status=404)
+            return JsonResponse(obj.data, safe=False)
         else:
-            records = model_class.objects.all().values_list('data', flat=True)
-            return JsonResponse(list(records), safe=False)
-            
+            records = list(model_class.objects.only('data').values_list('data', flat=True))
+            return JsonResponse(records, safe=False)
+
     elif request.method in ["POST", "PUT"]:
         try:
-            data = json.loads(request.body)
-            if resource_id is None:
-                id_field = ID_FIELDS.get(resource_name)
-                if id_field and isinstance(data, dict):
-                    resource_id = data.get(id_field)
-                elif isinstance(data, str):
-                    resource_id = data
-                else:
-                    return JsonResponse({'error': 'Missing ID in payload'}, status=400)
-                    
-            if not resource_id:
+            raw_data = json.loads(request.body)
+            data = validate_and_sanitize_payload(raw_data)
+
+            if id_field is None:
+                obj_id = str(data)
+            else:
+                if not isinstance(data, dict):
+                    return JsonResponse({'error': 'Expected JSON object'}, status=400)
+                obj_id = str(data.get(id_field, resource_id))
+
+            if not obj_id or obj_id == 'None':
                 return JsonResponse({'error': 'Missing ID'}, status=400)
-                
+
+            if resource_id and str(resource_id) != obj_id:
+                model_class.objects.filter(id=resource_id).delete()
+                resource_id = obj_id
+            elif not resource_id:
+                resource_id = obj_id
+
+            existing_obj = model_class.objects.only('id', 'data').filter(id=resource_id).first()
+
             if isinstance(data, dict) and resource_name in ('salidas', 'reservas', 'garantias'):
-                existing_obj = model_class.objects.filter(id=resource_id).first()
                 if existing_obj and isinstance(existing_obj.data, dict):
                     if resource_name == 'salidas' and data.get('carrierGuide') == '__LAZY_IMAGE__':
                         data['carrierGuide'] = existing_obj.data.get('carrierGuide', '')
@@ -206,57 +274,84 @@ def api_resource(request, resource_name, resource_id=None):
                         data['receipt'] = existing_obj.data.get('receipt', '')
                     elif resource_name == 'garantias' and isinstance(data.get('evidence'), dict) and data['evidence'].get('data') == '__LAZY_IMAGE__':
                         data['evidence'] = existing_obj.data.get('evidence')
-                
-            if resource_name == 'facturacion' and model_class.objects.filter(id=resource_id).exists():
+
+            if resource_name == 'facturacion' and existing_obj is not None:
                 active_email = request.session.get('active_user_email')
-                active_user = AppUser.objects.filter(id=active_email).first()
+                active_user = AppUser.objects.only('data').filter(id=active_email).first()
                 if not active_user or not isinstance(active_user.data, dict) or active_user.data.get('role') != 'Administrador':
                     return JsonResponse({'error': 'Solo un Administrador puede modificar este documento'}, status=403)
+
+            # Detectar cambio de privilegios o contraseña en usuarios para rotar/revocar sesiones (Anti-Fixation)
+            privilege_changed = False
+            if resource_name == 'users' and existing_obj and isinstance(existing_obj.data, dict) and isinstance(data, dict):
+                old_role = existing_obj.data.get('role')
+                old_perms = existing_obj.data.get('perms')
+                old_pwd = existing_obj.data.get('password')
+                if (data.get('role') != old_role) or (data.get('perms') != old_perms) or (data.get('password') != old_pwd):
+                    privilege_changed = True
 
             model_class.objects.update_or_create(
                 id=resource_id,
                 defaults={'data': data}
             )
+
+            if privilege_changed:
+                active_email = (request.session.get('active_user_email') or '').lower()
+                if resource_id.lower() == active_email:
+                    register_authenticated_session(request, resource_id)
+                    revoke_user_sessions(resource_id, exclude_session_key=request.session.session_key)
+                else:
+                    revoke_user_sessions(resource_id)
+
             return JsonResponse({'success': True, 'id': resource_id})
+        except ValueError as ve:
+            return JsonResponse({'error': str(ve)}, status=400)
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
-            
+
     elif request.method == "DELETE":
         if not resource_id:
             return JsonResponse({'error': 'Missing ID for deletion'}, status=400)
         if resource_name == 'facturacion':
             active_email = request.session.get('active_user_email')
-            active_user = AppUser.objects.filter(id=active_email).first()
+            active_user = AppUser.objects.only('data').filter(id=active_email).first()
             if not active_user or not isinstance(active_user.data, dict) or active_user.data.get('role') != 'Administrador':
                 return JsonResponse({'error': 'Solo un Administrador puede eliminar este documento'}, status=403)
+        if resource_name == 'users':
+            revoke_user_sessions(resource_id)
         model_class.objects.filter(id=resource_id).delete()
         return JsonResponse({'success': True})
-        
+
+
 @csrf_exempt
 @require_http_methods(["POST"])
 @require_auth
 def sync_metadata(request):
     try:
-        new_state = json.loads(request.body)
+        raw_state = json.loads(request.body)
+        new_state = validate_and_sanitize_payload(raw_state)
         extra_keys = ['backup', 'backupsLog', 'pedidosAccesorios', 'rotulos', 'simulations']
         meta_data = {}
         for key in extra_keys:
             if key in new_state:
                 meta_data[key] = new_state[key]
-                
-        existing_meta = AppUser.objects.filter(id='SYSTEM_METADATA').first()
+
+        existing_meta = AppUser.objects.only('data').filter(id='SYSTEM_METADATA').first()
         if existing_meta and isinstance(existing_meta.data, dict):
             for key in extra_keys:
                 if key in existing_meta.data and (key not in meta_data or meta_data[key] is None or meta_data[key] == []):
                     meta_data[key] = existing_meta.data[key]
-        
+
         AppUser.objects.update_or_create(
             id='SYSTEM_METADATA',
             defaults={'data': meta_data}
         )
         return JsonResponse({'success': True})
+    except ValueError as ve:
+        return JsonResponse({'error': str(ve)}, status=400)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
 
 @csrf_exempt
 @require_http_methods(["POST"])
@@ -264,7 +359,7 @@ def sync_metadata(request):
 def sync_state(request):
     return JsonResponse({'success': True, 'message': 'Endpoint deprecado. Use APIs granulares.'})
 
-# Vista basada en DRF para el modelo Product
+
 class ProductListCreateView(generics.ListCreateAPIView):
-    queryset = Product.objects.all()
+    queryset = Product.objects.only('id', 'data', 'sucursal_id', 'sku', 'created_at').all()
     serializer_class = ProductSerializer

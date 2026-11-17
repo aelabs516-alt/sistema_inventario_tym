@@ -24,5 +24,5 @@ RUN python manage.py collectstatic --noinput
 # Exponemos el puerto de la aplicación
 EXPOSE 8000
 
-# Comando de inicio: Migra la BD real y enciende el servidor
-CMD ["sh", "-c", "python manage.py migrate && gunicorn core.wsgi:application --bind 0.0.0.0:8000 --workers 2 --threads 4 --worker-class gthread --timeout 120"]
+# Comando de inicio: Migra la BD real y enciende el servidor optimizado para VPS (6 vCPUs / 12 GB RAM)
+CMD ["sh", "-c", "python manage.py migrate && gunicorn core.wsgi:application --bind 0.0.0.0:8000 --workers ${GUNICORN_WORKERS:-4} --threads ${GUNICORN_THREADS:-4} --worker-class gthread --timeout 120 --max-requests 1000 --max-requests-jitter 100"]
