@@ -963,12 +963,16 @@ body.dark-mode .btn-secondary {
 
 .dashboard-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 24px;
+  width: 100%;
 }
 
+.dashboard-grid .chart-card,
 .chart-card.full-width {
-  grid-column: span 2;
+  grid-column: 1 / -1;
+  width: 100%;
+  min-width: 0;
 }
 
 .max-w-600 {
@@ -1188,14 +1192,21 @@ body.dark-mode .alert-info {
 /* Gráficos Contenedores */
 .chart-container {
   position: relative;
-  height: 250px;
+  height: 320px;
   width: 100%;
+  max-width: 100%;
 }
 
 .chart-container-large {
   position: relative;
-  height: 320px;
+  height: 350px;
   width: 100%;
+  max-width: 100%;
+}
+
+.chart-container canvas,
+.chart-container-large canvas {
+  width: 100% !important;
 }
 
 /* ==========================================================================
