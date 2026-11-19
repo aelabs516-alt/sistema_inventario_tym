@@ -1883,6 +1883,9 @@ function resetStockExitForm() {
   const sellerSelect = document.getElementById("exit-seller");
   sellerSelect.innerHTML = State.sellers.filter(s => s.active).map(s => `<option value="${s.name}">${s.name}</option>`).join("");
 
+  // Disparar evento change de Punto de Venta para actualizar campos condicionales (# Venta / Orden No.)
+  document.getElementById("exit-pve").dispatchEvent(new Event("change"));
+
   // Resetear sección ME y badges
   document.getElementById("exit-me-fields").classList.add("hidden");
   const catBadge = document.getElementById("exit-badge-category");
@@ -2000,6 +2003,7 @@ document.getElementById("exit-warehouse-global").onchange = function() {
 // Al cambiar Punto de Venta
 document.getElementById("exit-pve").addEventListener("change", function() {
   const pve = (this.value || "").trim().toLowerCase();
+  const pveNorm = pve.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   const carrierSelect = document.getElementById("exit-carrier");
   const sellerSelect = document.getElementById("exit-seller");
   const channelSelect = document.getElementById("exit-channel");
@@ -2007,8 +2011,9 @@ document.getElementById("exit-pve").addEventListener("change", function() {
   const mlValues = ["mercado libre despacho", "mercado libre flex", "mercado libre full"];
   const isML = mlValues.includes(pve);
   const isFalabella = pve === "falabella";
+  const isExito = pve === "éxito" || pve === "exito" || pveNorm === "exito";
 
-  if (isML || isFalabella) {
+  if (isML || isFalabella || isExito) {
     document.getElementById("group-exit-venta-num").classList.remove("hidden");
     const lbl = document.querySelector("#group-exit-venta-num label");
     const inp = document.getElementById("exit-venta-num");
@@ -2273,12 +2278,14 @@ document.getElementById("form-stock-exit").addEventListener("submit", async (e) 
     facturaElectronica = document.getElementById("exit-factura-electronica").value;
     ean = document.getElementById("exit-me-serials").value;
 
-    const pveLower = pve.toLowerCase();
+    const pveLower = (pve || "").trim().toLowerCase();
+    const pveNorm = pveLower.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     const mlValues = ["mercado libre despacho", "mercado libre flex", "mercado libre full"];
     const isML = mlValues.includes(pveLower);
     const isFalabella = pveLower === "falabella";
+    const isExito = pveLower === "éxito" || pveLower === "exito" || pveNorm === "exito";
 
-    if (isML || isFalabella) {
+    if (isML || isFalabella || isExito) {
       ventaNum = document.getElementById("exit-venta-num").value.trim();
       const fieldName = isML ? "# Venta" : "Orden No.";
       
