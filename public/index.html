@@ -58,7 +58,8 @@
             <input type="password" id="login-password" required placeholder="••••••••">
           </div>
         </div>
-        <div style="text-align: right; margin-top: -8px; margin-bottom: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: -8px; margin-bottom: 16px;">
+          <a href="#" id="btn-login-change-password" style="font-size: 11px; color: var(--primary); text-decoration: none; font-weight: 500; transition: color 0.2s;">Cambiar contraseña</a>
           <a href="#" id="btn-forgot-password" style="font-size: 11px; color: var(--primary); text-decoration: none; font-weight: 500; transition: color 0.2s;">¿Olvidaste tu contraseña?</a>
         </div>
         <div id="login-error" class="error-alert hidden">
@@ -88,9 +89,14 @@
           <h4 id="user-display-name">Operaciones</h4>
           <span id="user-display-role">Administrador</span>
         </div>
-        <button id="logout-btn" title="Cerrar Sesión" class="logout-btn">
-          <i data-lucide="log-out"></i>
-        </button>
+        <div style="display: flex; align-items: center; gap: 4px;">
+          <button id="btn-system-change-password" title="Cambiar Contraseña" class="logout-btn">
+            <i data-lucide="key-round"></i>
+          </button>
+          <button id="logout-btn" title="Cerrar Sesión" class="logout-btn">
+            <i data-lucide="log-out"></i>
+          </button>
+        </div>
       </div>
 
       <nav class="sidebar-nav">
@@ -455,10 +461,14 @@
                             <input type="number" step="0.01" id="prod-length" required placeholder="0.0">
                           </div>
                         </div>
-                        <div class="form-row">
+                        <div class="form-row-3col">
                           <div class="form-group">
                             <label for="prod-box-qty">Cantidad por caja</label>
                             <input type="number" id="prod-box-qty" required placeholder="Ej. 24" min="1">
+                          </div>
+                          <div class="form-group">
+                            <label for="prod-weight">Peso Unitario (Kg)</label>
+                            <input type="number" step="0.01" min="0" id="prod-weight" required placeholder="Ej. 1.50">
                           </div>
                           <div class="form-group">
                             <label>CBM calculado</label>
@@ -496,7 +506,7 @@
                               <th>Foto</th>
                               <th>SKU / EAN</th>
                               <th>Nombre / Categoría</th>
-                              <th>CBM</th>
+                              <th>CBM / Peso</th>
                               <th>Acciones</th>
                             </tr>
                           </thead>
@@ -689,10 +699,6 @@
                         <div class="form-group">
                           <label for="user-name">Nombre Completo</label>
                           <input type="text" id="user-name" required placeholder="Ej. Juan Pérez">
-                        </div>
-                        <div class="form-group">
-                          <label for="user-password">Contraseña</label>
-                          <input type="password" id="user-password" required placeholder="Min 6 caracteres">
                         </div>
                         <div class="form-group">
                           <label for="user-role">Rol Principal</label>
@@ -1334,6 +1340,11 @@
                 <div class="sim-metric-card mb-4">
                   <span class="sim-metric-label">VOLUMEN CONSOLIDADO</span>
                   <span class="sim-metric-value" id="sim-total-cbm">0.000000 m³</span>
+                </div>
+
+                <div class="sim-metric-card mb-4">
+                  <span class="sim-metric-label">PESO DE LA IMPORTACIÓN</span>
+                  <span class="sim-metric-value" id="sim-total-weight">0.00 Kg / 0.000 Ton</span>
                 </div>
 
                 <div class="sim-metric-card mb-4">
@@ -2900,8 +2911,95 @@
     </div>
   </div>
 
+  <!-- MODAL CREDENCIALES DE NUEVO USUARIO -->
+  <div id="modal-new-user-credentials" class="modal-wrapper hidden" style="z-index: 10150;">
+    <div class="modal-card" style="max-width: 420px; text-align: center;">
+      <div class="modal-header" style="justify-content: flex-end; border-bottom: none; padding-bottom: 0;">
+        <button class="modal-close-btn" onclick="document.getElementById('modal-new-user-credentials').classList.add('hidden')"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body" style="display: flex; flex-direction: column; align-items: center; gap: 14px; padding-top: 0;">
+        <div style="background: rgba(16, 185, 129, 0.15); padding: 15px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-sm);">
+          <i data-lucide="user-check" style="color: #10b981; width: 32px; height: 32px;"></i>
+        </div>
+        <h3 style="margin: 0; font-size: 1.4rem; color: var(--text-primary);">Usuario Registrado</h3>
+        <p style="font-size: 0.9rem; color: var(--text-secondary); margin: 0;">Entregue las siguientes credenciales de acceso. El usuario deberá cambiar la contraseña por defecto en su primer inicio de sesión:</p>
+        <div style="width: 100%; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 14px 16px; text-align: left; display: flex; flex-direction: column; gap: 10px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed var(--border-color); padding-bottom: 8px;">
+            <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">Usuario:</span>
+            <span id="new-user-cred-username" style="font-size: 1rem; font-weight: 700; color: var(--text-main);"></span>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">Contraseña:</span>
+            <span id="new-user-cred-password" style="font-size: 1rem; font-weight: 700; color: var(--primary); font-family: monospace;">2026TyM*</span>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer" style="display: flex; justify-content: center; border-top: none; padding-top: 10px; padding-bottom: 24px;">
+        <button class="btn btn-primary" style="width: 140px; font-weight: 600;" onclick="document.getElementById('modal-new-user-credentials').classList.add('hidden')">Aceptar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL CAMBIO DE CONTRASEÑA (PRIMER INICIO / LOGIN / SISTEMA) -->
+  <div id="modal-change-password" class="modal-wrapper hidden" style="z-index: 10200;">
+    <div class="modal-card" style="max-width: 440px;">
+      <div class="modal-header">
+        <h4 id="modal-change-pwd-title">Cambiar Contraseña</h4>
+        <button class="modal-close-btn" id="btn-close-change-password"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body">
+        <p id="modal-change-pwd-subtitle" class="text-muted text-sm mb-3">Actualice su contraseña cumpliendo con los requisitos de seguridad.</p>
+        <form id="form-change-password">
+          <div class="form-group" id="group-change-pwd-identity">
+            <label for="change-pwd-identity">Usuario o Correo Electrónico</label>
+            <div class="input-icon-wrapper">
+              <i data-lucide="user"></i>
+              <input type="text" id="change-pwd-identity" required placeholder="Usuario o correo">
+            </div>
+          </div>
+          <div class="form-group" id="group-change-pwd-current">
+            <label for="change-pwd-current">Contraseña Actual</label>
+            <div class="input-icon-wrapper">
+              <i data-lucide="lock"></i>
+              <input type="password" id="change-pwd-current" required placeholder="Contraseña actual">
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="change-pwd-new">Nueva Contraseña</label>
+            <div class="input-icon-wrapper">
+              <i data-lucide="key-round"></i>
+              <input type="password" id="change-pwd-new" required placeholder="Mínimo 8 caracteres">
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="change-pwd-confirm">Confirmar Nueva Contraseña</label>
+            <div class="input-icon-wrapper">
+              <i data-lucide="check-circle"></i>
+              <input type="password" id="change-pwd-confirm" required placeholder="Repita la nueva contraseña">
+            </div>
+          </div>
+
+          <div style="background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 10px 12px; font-size: 0.78rem; margin-bottom: 12px;">
+            <div style="font-weight: 600; margin-bottom: 6px; color: var(--text-main);">Requisitos de seguridad:</div>
+            <div id="pwd-req-len" style="color: var(--text-muted);">• Mínimo 8 caracteres</div>
+            <div id="pwd-req-upper" style="color: var(--text-muted);">• Al menos una letra mayúscula (A-Z)</div>
+            <div id="pwd-req-lower" style="color: var(--text-muted);">• Al menos una letra minúscula (a-z)</div>
+            <div id="pwd-req-num" style="color: var(--text-muted);">• Al menos un número (0-9)</div>
+            <div id="pwd-req-spec" style="color: var(--text-muted);">• Al menos un carácter especial (*, @, #, $, !, etc.)</div>
+          </div>
+
+          <div id="change-pwd-alert" class="alert hidden" style="margin-bottom: 12px; padding: 10px; font-size: 12px; border-radius: 4px;"></div>
+
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary btn-block" id="btn-submit-change-password"><i data-lucide="save"></i> Actualizar Contraseña</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
   <!-- Script Principal -->
   <script src="colombia_geodata.js"></script>
-  <script src="app.js?v=9"></script>
+  <script src="app.js?v=10"></script>
 </body>
 </html>

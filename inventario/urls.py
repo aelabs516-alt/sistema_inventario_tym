@@ -8,6 +8,7 @@ urlpatterns = [
     # Rutas de autenticación, control de sesiones y sincronización
     path('auth/login', views.login_view, name='login'),
     path('auth/logout', views.logout_view, name='logout'),
+    path('auth/change-password', views.change_password_view, name='change_password'),
     path('auth/revoke-sessions', views.revoke_sessions_view, name='revoke_sessions'),
     path('auth/me', views.me_view, name='me'),
     path('init-state', views.init_state, name='init_state'),

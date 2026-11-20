@@ -1,4 +1,5 @@
 import json
+import re
 from functools import wraps
 from urllib.parse import unquote
 from django.http import JsonResponse
@@ -119,6 +120,94 @@ def login_view(request):
 def logout_view(request):
     invalidate_session(request)
     return JsonResponse({'success': True})
+
+
+def validate_strong_password(pwd: str) -> str:
+    """
+    Valida que la contraseña cumpla con el factor de seguridad:
+    - Mínimo 8 caracteres
+    - Al menos una letra mayúscula
+    - Al menos una letra minúscula
+    - Al menos un número
+    - Al menos un carácter especial
+    Retorna cadena vacía si es válida, o mensaje de error si no cumple.
+    """
+    if not isinstance(pwd, str) or len(pwd) < 8:
+        return "La contraseña debe tener mínimo 8 caracteres."
+    if not re.search(r"[A-ZÁÉÍÓÚÑ]", pwd):
+        return "La contraseña debe incluir al menos una letra mayúscula."
+    if not re.search(r"[a-záéíóúñ]", pwd):
+        return "La contraseña debe incluir al menos una letra minúscula."
+    if not re.search(r"[0-9]", pwd):
+        return "La contraseña debe incluir al menos un número."
+    if not re.search(r"[^A-Za-z0-9ÁÉÍÓÚÑáéíóúñ\s]", pwd):
+        return "La contraseña debe incluir al menos un carácter especial (ej. *, @, #, $, !)."
+    return ""
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def change_password_view(request):
+    """
+    Permite a cualquier usuario cambiar su contraseña en cualquier momento,
+    tanto desde la pantalla de inicio de sesión como desde dentro del sistema,
+    o durante el primer inicio de sesión obligatorio (contraseña por defecto 2026TyM*).
+    """
+    try:
+        raw_body = json.loads(request.body) if request.body else {}
+        body = validate_and_sanitize_payload(raw_body) if isinstance(raw_body, dict) else {}
+
+        identity = str(body.get('identity') or request.session.get('active_user_email') or '').strip().lower()
+        current_password = str(body.get('current_password') or '')
+        new_password = str(body.get('new_password') or '')
+
+        if not identity or not current_password or not new_password:
+            return JsonResponse({'error': 'Todos los campos son obligatorios.'}, status=400)
+
+        pwd_error = validate_strong_password(new_password)
+        if pwd_error:
+            return JsonResponse({'error': pwd_error}, status=400)
+
+        if new_password == "2026TyM*":
+            return JsonResponse({'error': 'La nueva contraseña no puede ser igual a la contraseña por defecto (2026TyM*).'}, status=400)
+
+        if new_password == current_password:
+            return JsonResponse({'error': 'La nueva contraseña debe ser diferente a la contraseña actual.'}, status=400)
+
+        # Buscar usuario por email (id) o username
+        target_record = AppUser.objects.only('id', 'data').filter(id__iexact=identity).first()
+        if not target_record:
+            for u in AppUser.objects.exclude(id='SYSTEM_METADATA').only('id', 'data'):
+                if isinstance(u.data, dict):
+                    if u.data.get('email', '').lower() == identity or u.data.get('username', '').lower() == identity:
+                        target_record = u
+                        break
+
+        if not target_record or not isinstance(target_record.data, dict):
+            return JsonResponse({'error': 'Usuario o correo electrónico no encontrado.'}, status=404)
+
+        if target_record.data.get('password') != current_password:
+            return JsonResponse({'error': 'La contraseña actual ingresada es incorrecta.'}, status=401)
+
+        updated_data = dict(target_record.data)
+        updated_data['password'] = new_password
+        updated_data['mustChangePassword'] = False
+        target_record.data = updated_data
+        target_record.save()
+
+        # Si el usuario tiene sesión activa, rotar su session_id y revocar sesiones antiguas
+        active_email = (request.session.get('active_user_email') or '').lower()
+        if active_email and active_email == target_record.id.lower():
+            register_authenticated_session(request, target_record.id)
+            revoke_user_sessions(target_record.id, exclude_session_key=request.session.session_key)
+        else:
+            revoke_user_sessions(target_record.id)
+
+        return JsonResponse({'success': True, 'user': updated_data})
+    except ValueError as ve:
+        return JsonResponse({'error': str(ve)}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
 
 
 @csrf_exempt

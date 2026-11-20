@@ -225,6 +225,17 @@ async function checkAuthAndInit() {
     if (res.ok) {
       const data = await res.json();
       State.activeUser = data.user;
+      if (State.activeUser && (State.activeUser.mustChangePassword === true || State.activeUser.password === "2026TyM*")) {
+        if (typeof showLogin === 'function') showLogin();
+        if (typeof openChangePasswordModal === 'function') {
+          openChangePasswordModal({
+            mode: "first-login",
+            identity: State.activeUser.username || State.activeUser.email,
+            currentPassword: State.activeUser.password || "2026TyM*"
+          });
+        }
+        return;
+      }
       await fetchInitialState(true);
     } else {
       State.activeUser = null;
@@ -388,9 +399,19 @@ document.getElementById("login-form").addEventListener("submit", async (e) => {
       const data = await res.json();
       State.activeUser = data.user;
       document.getElementById("first-login-tip").classList.add("hidden");
-      await fetchInitialState(true);
       submitBtn.textContent = originalText;
       submitBtn.disabled = false;
+
+      if (data.user && (data.user.mustChangePassword === true || pass === "2026TyM*")) {
+        openChangePasswordModal({
+          mode: "first-login",
+          identity: data.user.username || data.user.email,
+          currentPassword: pass
+        });
+        return;
+      }
+
+      await fetchInitialState(true);
     } else {
       const errorBlock = document.getElementById("login-error");
       errorBlock.classList.remove("hidden");
@@ -710,6 +731,7 @@ function initModules() {
     const width = parseFloat(pWidth.value) || 0;
     const length = parseFloat(pLength.value) || 0;
     const boxQty = parseInt(document.getElementById("prod-box-qty").value) || 1;
+    const weight = parseFloat(document.getElementById("prod-weight").value) || 0;
 
     // Verificar edición vs creación
     if (editingProductSku) {
@@ -721,7 +743,8 @@ function initModules() {
       }
       const existIndex = State.products.findIndex(p => p.sku === editingProductSku);
       if (existIndex > -1) {
-        State.products[existIndex] = { sku, barcode, name, category, height, width, length, boxQty, photo: productPhotoBase64 };
+        const prevProd = State.products[existIndex] || {};
+        State.products[existIndex] = { ...prevProd, sku, barcode, name, category, height, width, length, boxQty, weight, photo: productPhotoBase64 };
       }
       editingProductSku = null; // Limpiar estado de edición
     } else {
@@ -731,7 +754,7 @@ function initModules() {
         if (submitBtn) submitBtn.disabled = false;
         return;
       }
-      State.products.push({ sku, barcode, name, category, height, width, length, boxQty, photo: productPhotoBase64 });
+      State.products.push({ sku, barcode, name, category, height, width, length, boxQty, weight, photo: productPhotoBase64 });
     }
 
     State.save();
@@ -1035,7 +1058,6 @@ function initModules() {
 
     const username = document.getElementById("user-username").value.trim();
     const name = document.getElementById("user-name").value.trim();
-    const password = document.getElementById("user-password").value;
     const role = uRole.value;
     const editEmail = document.getElementById("user-edit-email").value;
     
@@ -1052,6 +1074,7 @@ function initModules() {
         const existUser = State.users.find(u => u.email === email);
         if (existUser) {
           showCustomAlert("El nuevo correo electrónico ya se encuentra registrado por otro usuario.");
+          submitBtn.disabled = false;
           return;
         }
       }
@@ -1063,7 +1086,6 @@ function initModules() {
         user.email = email;
         user.username = username;
         user.name = name;
-        user.password = password;
         user.role = role;
         user.perms = perms;
         user.photo = userPhotoBase64;
@@ -1075,13 +1097,36 @@ function initModules() {
         showCustomAlert("Usuario actualizado con éxito.");
       }
     } else {
-      // Registrar nuevo
-      if (State.users.some(u => u.email === email || (username && u.username === username))) {
+      // Registrar nuevo con contraseña por defecto 2026TyM*
+      if (State.users.some(u => u.email === email || (username && u.username && u.username.toLowerCase() === username.toLowerCase()))) {
         showCustomAlert("Ya existe un usuario con este correo electrónico o nombre de usuario.");
+        submitBtn.disabled = false;
         return;
       }
-      State.users.push({ email, username, name, password, role, perms, photo: userPhotoBase64 });
-      showCustomAlert("Usuario creado correctamente.");
+      const defaultPassword = "2026TyM*";
+      State.users.push({
+        email,
+        username,
+        name,
+        password: defaultPassword,
+        role,
+        perms,
+        photo: userPhotoBase64,
+        mustChangePassword: true
+      });
+      
+      // Mostrar ventana emergente con Usuario y Contraseña por defecto
+      const credUserEl = document.getElementById("new-user-cred-username");
+      const credPassEl = document.getElementById("new-user-cred-password");
+      const credModal = document.getElementById("modal-new-user-credentials");
+      if (credUserEl && credPassEl && credModal) {
+        credUserEl.textContent = username || email;
+        credPassEl.textContent = defaultPassword;
+        credModal.classList.remove("hidden");
+        if (window.lucide) lucide.createIcons();
+      } else {
+        showCustomAlert(`Usuario creado.\nUsuario: ${username || email}\nContraseña: ${defaultPassword}`);
+      }
     }
 
     State.save();
@@ -1200,6 +1245,7 @@ function renderProductsList(searchQuery = "") {
   filtered.forEach(p => {
     const tr = document.createElement("tr");
     const cbm = calculateProductCBM(p.height, p.width, p.length, p.boxQty);
+    const weightVal = parseFloat(p.weight) || 0;
     const photoImg = p.photo ? `<img src="${p.photo}" class="table-img-thumb" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;">` : `<span class="text-muted font-sm">Sin Foto</span>`;
 
     tr.innerHTML = `
@@ -1214,7 +1260,7 @@ function renderProductsList(searchQuery = "") {
       </td>
       <td>
         <span>${cbm.toFixed(6)} m³</span><br>
-        <span class="text-muted font-sm">${p.boxQty} uds/caja</span>
+        <span class="text-muted font-sm">${p.boxQty} uds/caja | ${weightVal.toFixed(2)} Kg</span>
       </td>
       <td>
         <button class="btn btn-secondary btn-sm btn-edit-p" data-sku="${p.sku}"><i data-lucide="edit-2"></i></button>
@@ -1240,6 +1286,8 @@ function renderProductsList(searchQuery = "") {
         document.getElementById("prod-width").value = p.width;
         document.getElementById("prod-length").value = p.length;
         document.getElementById("prod-box-qty").value = p.boxQty;
+        const weightInput = document.getElementById("prod-weight");
+        if (weightInput) weightInput.value = p.weight !== undefined ? p.weight : "";
         if (p.photo) {
           document.getElementById("prod-photo-preview").innerHTML = `<img src="${p.photo}" alt="Photo">`;
           document.getElementById("btn-delete-photo").classList.remove("hidden");
@@ -1466,7 +1514,6 @@ function renderUsersList() {
         document.getElementById("user-email").value = u.email;
         document.getElementById("user-username").value = u.username || "";
         document.getElementById("user-name").value = u.name;
-        document.getElementById("user-password").value = u.password;
         
         const roleSelect = document.getElementById("user-role");
         roleSelect.value = u.role;
@@ -2561,8 +2608,14 @@ function renderSimulationTable() {
 
   let totalSimCbm = 0;
   let totalSimBoxes = 0;
+  let totalSimWeightKg = 0;
 
   currentSimItems.forEach((item, index) => {
+    const p = State.products.find(prod => prod.sku === item.sku);
+    const unitWeight = parseFloat(p?.weight ?? item.unitWeight) || 0;
+    item.unitWeight = unitWeight;
+    item.totalWeightKg = item.qtyRequested * unitWeight;
+
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${item.name} (${item.sku})</td>
@@ -2581,9 +2634,16 @@ function renderSimulationTable() {
 
     totalSimCbm += item.totalCbm;
     totalSimBoxes += item.boxesReq;
+    totalSimWeightKg += item.totalWeightKg;
   });
 
+  const totalSimWeightTon = totalSimWeightKg / 1000;
+
   document.getElementById("sim-total-cbm").textContent = `${totalSimCbm.toFixed(6)} m³`;
+  const weightEl = document.getElementById("sim-total-weight");
+  if (weightEl) {
+    weightEl.textContent = `${totalSimWeightKg.toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Kg / ${totalSimWeightTon.toLocaleString("es-CO", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} Ton`;
+  }
   document.getElementById("sim-total-boxes").textContent = totalSimBoxes;
 
   // Actualizar semáforo in-line
@@ -2731,6 +2791,7 @@ document.getElementById("btn-save-sim").onclick = function() {
   }
 
   const cbmStr = document.getElementById("sim-total-cbm").textContent;
+  const weightStr = document.getElementById("sim-total-weight") ? document.getElementById("sim-total-weight").textContent : "0.00 Kg / 0.000 Ton";
   const boxes = parseInt(document.getElementById("sim-total-boxes").textContent);
   
   // Extraer estado actual del semáforo
@@ -2746,6 +2807,7 @@ document.getElementById("btn-save-sim").onclick = function() {
     name: simName.trim() || "Simulación",
     date: new Date().toISOString().split("T")[0],
     cbm: cbmStr,
+    weight: weightStr,
     boxes: boxes,
     method: title,
     icon: icon,
@@ -2768,6 +2830,7 @@ document.getElementById("btn-export-sim-pdf").onclick = function() {
   if (simName === null) return; // Cancelado
 
   const cbmStr = document.getElementById("sim-total-cbm").textContent;
+  const weightStr = document.getElementById("sim-total-weight") ? document.getElementById("sim-total-weight").textContent : "0.00 Kg / 0.000 Ton";
   const boxes = document.getElementById("sim-total-boxes").textContent;
   const title = document.getElementById("sim-traffic-title").textContent;
   const icon = document.getElementById("sim-traffic-icon").textContent;
@@ -2806,6 +2869,7 @@ document.getElementById("btn-export-sim-pdf").onclick = function() {
     <div style="margin-bottom: 30px; display: flex; justify-content: space-between; background: #f8f9fa; padding: 15px; border-radius: 8px;">
       <div>
         <strong>Volumen Consolidado:</strong> <span style="color: #0d6efd; font-weight: 600;">${cbmStr}</span><br>
+        <strong>Peso de la Importación:</strong> <span style="color: #0f766e; font-weight: 600;">${weightStr}</span><br>
         <strong>Cajas Totales:</strong> <span style="font-weight: 600;">${boxes}</span>
       </div>
       <div style="text-align: right;">
@@ -8686,8 +8750,252 @@ document.getElementById("form-facturacion").addEventListener("submit", async fun
 });
 
 // ==========================================================================
-// LÓGICA DE RECUPERACIÓN DE CONTRASEÑA
+// LÓGICA DE CAMBIO Y RECUPERACIÓN DE CONTRASEÑA (CON FACTOR DE SEGURIDAD)
 // ==========================================================================
+function validateStrongPassword(pwd) {
+  if (typeof pwd !== "string" || pwd.length < 8) {
+    return "La contraseña debe tener mínimo 8 caracteres.";
+  }
+  if (!/[A-ZÁÉÍÓÚÑ]/.test(pwd)) {
+    return "La contraseña debe incluir al menos una letra mayúscula.";
+  }
+  if (!/[a-záéíóúñ]/.test(pwd)) {
+    return "La contraseña debe incluir al menos una letra minúscula.";
+  }
+  if (!/[0-9]/.test(pwd)) {
+    return "La contraseña debe incluir al menos un número.";
+  }
+  if (!/[^A-Za-z0-9ÁÉÍÓÚÑáéíóúñ\s]/.test(pwd)) {
+    return "La contraseña debe incluir al menos un carácter especial (ej. *, @, #, $, !).";
+  }
+  return "";
+}
+
+function updatePasswordChecklistUI(pwd) {
+  const rules = [
+    { id: "pwd-req-len", ok: typeof pwd === "string" && pwd.length >= 8 },
+    { id: "pwd-req-upper", ok: /[A-ZÁÉÍÓÚÑ]/.test(pwd || "") },
+    { id: "pwd-req-lower", ok: /[a-záéíóúñ]/.test(pwd || "") },
+    { id: "pwd-req-num", ok: /[0-9]/.test(pwd || "") },
+    { id: "pwd-req-spec", ok: /[^A-Za-z0-9ÁÉÍÓÚÑáéíóúñ\s]/.test(pwd || "") }
+  ];
+  rules.forEach(r => {
+    const el = document.getElementById(r.id);
+    if (el) {
+      el.style.color = r.ok ? "#10b981" : "var(--text-muted)";
+      el.style.fontWeight = r.ok ? "600" : "400";
+    }
+  });
+}
+
+let changePasswordModalMode = "login"; // "first-login" | "login" | "system"
+
+function openChangePasswordModal(options = {}) {
+  const modal = document.getElementById("modal-change-password");
+  if (!modal) return;
+
+  changePasswordModalMode = options.mode || "login";
+  const titleEl = document.getElementById("modal-change-pwd-title");
+  const subtitleEl = document.getElementById("modal-change-pwd-subtitle");
+  const closeBtn = document.getElementById("btn-close-change-password");
+  const identityInput = document.getElementById("change-pwd-identity");
+  const currentInput = document.getElementById("change-pwd-current");
+  const newInput = document.getElementById("change-pwd-new");
+  const confirmInput = document.getElementById("change-pwd-confirm");
+  const alertEl = document.getElementById("change-pwd-alert");
+
+  const form = document.getElementById("form-change-password");
+  if (form) form.reset();
+  if (alertEl) alertEl.classList.add("hidden");
+  updatePasswordChecklistUI("");
+
+  if (changePasswordModalMode === "first-login") {
+    if (titleEl) titleEl.textContent = "Cambio de Contraseña Obligatorio";
+    if (subtitleEl) {
+      subtitleEl.textContent = "Ha iniciado sesión con la contraseña por defecto (2026TyM*). Por seguridad, debe establecer su nueva contraseña personal antes de continuar.";
+    }
+    if (closeBtn) closeBtn.classList.add("hidden");
+    if (identityInput) {
+      identityInput.value = options.identity || "";
+      identityInput.readOnly = true;
+    }
+    if (currentInput) {
+      currentInput.value = options.currentPassword || "2026TyM*";
+      currentInput.readOnly = true;
+    }
+  } else if (changePasswordModalMode === "system") {
+    if (titleEl) titleEl.textContent = "Cambiar Mi Contraseña";
+    if (subtitleEl) {
+      subtitleEl.textContent = "Actualice su contraseña de acceso en cualquier momento.";
+    }
+    if (closeBtn) closeBtn.classList.remove("hidden");
+    if (identityInput) {
+      identityInput.value = (State.activeUser && (State.activeUser.username || State.activeUser.email)) || "";
+      identityInput.readOnly = true;
+    }
+    if (currentInput) {
+      currentInput.value = "";
+      currentInput.readOnly = false;
+    }
+  } else {
+    if (titleEl) titleEl.textContent = "Cambiar Contraseña";
+    if (subtitleEl) {
+      subtitleEl.textContent = "Ingrese su usuario o correo, su contraseña actual y la nueva contraseña que desea establecer.";
+    }
+    if (closeBtn) closeBtn.classList.remove("hidden");
+    if (identityInput) {
+      const loginEmailVal = document.getElementById("login-email") ? document.getElementById("login-email").value.trim() : "";
+      identityInput.value = options.identity || loginEmailVal || "";
+      identityInput.readOnly = false;
+    }
+    if (currentInput) {
+      currentInput.value = "";
+      currentInput.readOnly = false;
+    }
+  }
+
+  if (newInput) newInput.value = "";
+  if (confirmInput) confirmInput.value = "";
+
+  modal.classList.remove("hidden");
+  if (window.lucide) lucide.createIcons();
+}
+
+const changePwdNewInput = document.getElementById("change-pwd-new");
+if (changePwdNewInput) {
+  changePwdNewInput.addEventListener("input", function() {
+    updatePasswordChecklistUI(this.value);
+  });
+}
+
+const btnLoginChangePwd = document.getElementById("btn-login-change-password");
+if (btnLoginChangePwd) {
+  btnLoginChangePwd.addEventListener("click", function(e) {
+    e.preventDefault();
+    openChangePasswordModal({ mode: "login" });
+  });
+}
+
+const btnSystemChangePwd = document.getElementById("btn-system-change-password");
+if (btnSystemChangePwd) {
+  btnSystemChangePwd.addEventListener("click", function(e) {
+    e.preventDefault();
+    openChangePasswordModal({ mode: "system" });
+  });
+}
+
+const btnCloseChangePwd = document.getElementById("btn-close-change-password");
+if (btnCloseChangePwd) {
+  btnCloseChangePwd.addEventListener("click", function() {
+    if (changePasswordModalMode === "first-login") return;
+    document.getElementById("modal-change-password").classList.add("hidden");
+  });
+}
+
+const formChangePassword = document.getElementById("form-change-password");
+if (formChangePassword) {
+  formChangePassword.addEventListener("submit", async function(e) {
+    e.preventDefault();
+    const identity = document.getElementById("change-pwd-identity").value.trim();
+    const currentPassword = document.getElementById("change-pwd-current").value;
+    const newPassword = document.getElementById("change-pwd-new").value;
+    const confirmPassword = document.getElementById("change-pwd-confirm").value;
+    const alertEl = document.getElementById("change-pwd-alert");
+    const submitBtn = document.getElementById("btn-submit-change-password");
+
+    const showPwdAlert = (msg, isSuccess = false) => {
+      if (!alertEl) return;
+      alertEl.className = isSuccess ? "alert alert-success" : "alert alert-danger";
+      alertEl.style.background = isSuccess ? "#f0fdf4" : "#fef2f2";
+      alertEl.style.color = isSuccess ? "#166534" : "#991b1b";
+      alertEl.style.border = isSuccess ? "1px solid #dcfce7" : "1px solid #fee2e2";
+      alertEl.textContent = msg;
+      alertEl.classList.remove("hidden");
+    };
+
+    if (!identity || !currentPassword || !newPassword || !confirmPassword) {
+      showPwdAlert("⚠️ Todos los campos son obligatorios.");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      showPwdAlert("❌ La nueva contraseña y su confirmación no coinciden.");
+      return;
+    }
+
+    const pwdError = validateStrongPassword(newPassword);
+    if (pwdError) {
+      showPwdAlert("❌ " + pwdError);
+      return;
+    }
+
+    if (newPassword === "2026TyM*") {
+      showPwdAlert("❌ La nueva contraseña no puede ser la contraseña por defecto (2026TyM*).");
+      return;
+    }
+
+    if (newPassword === currentPassword) {
+      showPwdAlert("❌ La nueva contraseña debe ser diferente a la contraseña actual.");
+      return;
+    }
+
+    if (submitBtn) submitBtn.disabled = true;
+
+    try {
+      const res = await fetch("/api/auth/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          identity: identity,
+          current_password: currentPassword,
+          new_password: newPassword
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        showPwdAlert("❌ " + (data.error || "No fue posible cambiar la contraseña."));
+        if (submitBtn) submitBtn.disabled = false;
+        return;
+      }
+
+      // Actualizar estado en memoria si el usuario ya está cargado
+      if (data.user) {
+        const idx = State.users.findIndex(u => u.email && u.email.toLowerCase() === data.user.email.toLowerCase());
+        if (idx > -1) {
+          State.users[idx] = data.user;
+        }
+        if (State.activeUser && State.activeUser.email && State.activeUser.email.toLowerCase() === data.user.email.toLowerCase()) {
+          State.activeUser = data.user;
+        }
+        if (previousStateSnapshot && Array.isArray(previousStateSnapshot.users)) {
+          const snapIdx = previousStateSnapshot.users.findIndex(u => u.email && u.email.toLowerCase() === data.user.email.toLowerCase());
+          if (snapIdx > -1) {
+            previousStateSnapshot.users[snapIdx] = JSON.parse(JSON.stringify(data.user));
+          }
+        }
+      }
+
+      showPwdAlert("✅ Contraseña actualizada exitosamente.", true);
+
+      setTimeout(async () => {
+        document.getElementById("modal-change-password").classList.add("hidden");
+        if (submitBtn) submitBtn.disabled = false;
+        if (changePasswordModalMode === "first-login") {
+          await fetchInitialState(true);
+        } else if (changePasswordModalMode === "login") {
+          const loginPwdInput = document.getElementById("login-password");
+          if (loginPwdInput) loginPwdInput.value = "";
+        }
+      }, 900);
+    } catch (err) {
+      console.error("Error al cambiar contraseña:", err);
+      showPwdAlert("❌ Error de conexión con el servidor.");
+      if (submitBtn) submitBtn.disabled = false;
+    }
+  });
+}
+
 const recoveryModal = document.getElementById("modal-recovery");
 const forgotPasswordBtn = document.getElementById("btn-forgot-password");
 const closeRecoveryBtn = document.getElementById("btn-close-recovery");
@@ -8762,7 +9070,7 @@ if (recoveryForm) {
         recoveryResult.style.background = "#f0f9ff";
         recoveryResult.style.color = "#0369a1";
         recoveryResult.style.border = "1px solid #e0f2fe";
-        recoveryResult.innerHTML = "ℹ️ Tu contraseña debe ser restablecida por el Administrador. Por favor, contacta a <strong>operaciones@tecnologiaymovilidad.com</strong>.";
+        recoveryResult.innerHTML = "ℹ️ Puede cambiar su contraseña haciendo clic en <strong>Cambiar contraseña</strong> en la pantalla de inicio de sesión, o contactar al Administrador en <strong>operaciones@tecnologiaymovilidad.com</strong>.";
         recoveryResult.classList.remove("hidden");
         submitRecoveryBtn.style.display = "none";
       }
@@ -8782,17 +9090,19 @@ if (recoveryForm) {
         return;
       }
       
-      if (newPass.length < 6) {
+      const pwdErr = validateStrongPassword(newPass);
+      if (pwdErr) {
         recoveryResult.className = "alert alert-danger";
         recoveryResult.style.background = "#fef2f2";
         recoveryResult.style.color = "#991b1b";
         recoveryResult.style.border = "1px solid #fee2e2";
-        recoveryResult.textContent = "❌ La nueva contraseña debe tener al menos 6 caracteres.";
+        recoveryResult.textContent = "❌ " + pwdErr;
         return;
       }
       
       // Actualizar contraseña
       recoveryTargetUser.password = newPass;
+      recoveryTargetUser.mustChangePassword = false;
       localStorage.setItem("inv360_admin_password_set", "true");
       State.save();
       
