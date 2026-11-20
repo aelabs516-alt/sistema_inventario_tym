@@ -3084,20 +3084,41 @@ function renderStockBasicTable() {
   lucide.createIcons();
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  document.getElementById("btn-apply-stock-basic-filters").addEventListener("click", () => {
-    activeStockBasicFilters.categories = Array.from(document.getElementById("stock-basic-filter-categories").selectedOptions).map(o => o.value);
-    activeStockBasicFilters.warehouses = Array.from(document.getElementById("stock-basic-filter-warehouses").selectedOptions).map(o => o.value);
-    activeStockBasicFilters.products = Array.from(document.getElementById("stock-basic-filter-products").selectedOptions).map(o => o.value);
-    
-    // Add product name text search (accent and case insensitive)
-    const norm = str => str ? str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() : "";
-    activeStockBasicFilters.productName = norm(document.getElementById("stock-basic-filter-product-name").value.trim());
-    
-    renderStockBasicTable();
-  });
+function applyStockBasicFilters() {
+  const catEl = document.getElementById("stock-basic-filter-categories");
+  const whEl = document.getElementById("stock-basic-filter-warehouses");
+  const prodEl = document.getElementById("stock-basic-filter-products");
+  const nameEl = document.getElementById("stock-basic-filter-product-name");
 
-  document.getElementById("btn-clear-stock-basic-filters").addEventListener("click", () => {
+  activeStockBasicFilters.categories = catEl ? Array.from(catEl.selectedOptions).map(o => o.value) : [];
+  activeStockBasicFilters.warehouses = whEl ? Array.from(whEl.selectedOptions).map(o => o.value) : [];
+  activeStockBasicFilters.products = prodEl ? Array.from(prodEl.selectedOptions).map(o => o.value) : [];
+
+  const norm = str => str ? str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() : "";
+  activeStockBasicFilters.productName = norm(nameEl ? nameEl.value.trim() : "");
+
+  renderStockBasicTable();
+}
+
+const stockBasicNameInput = document.getElementById("stock-basic-filter-product-name");
+if (stockBasicNameInput) {
+  stockBasicNameInput.addEventListener("input", applyStockBasicFilters);
+  stockBasicNameInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      applyStockBasicFilters();
+    }
+  });
+}
+
+const btnApplyStockBasic = document.getElementById("btn-apply-stock-basic-filters");
+if (btnApplyStockBasic) {
+  btnApplyStockBasic.addEventListener("click", applyStockBasicFilters);
+}
+
+const btnClearStockBasic = document.getElementById("btn-clear-stock-basic-filters");
+if (btnClearStockBasic) {
+  btnClearStockBasic.addEventListener("click", () => {
     document.getElementById("stock-basic-filter-categories").selectedIndex = -1;
     document.getElementById("stock-basic-filter-warehouses").selectedIndex = -1;
     updateStockBasicProductOptions();
@@ -3108,7 +3129,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (typeof syncAllCustomMultiSelects === "function") syncAllCustomMultiSelects();
     renderStockBasicTable();
   });
-});
+}
 
 
 // ==========================================================================
@@ -3184,18 +3205,36 @@ function initStockFilters() {
   if (typeof syncAllCustomMultiSelects === "function") syncAllCustomMultiSelects();
 }
 
-// Botones aplicar filtros de stock
-document.getElementById("btn-apply-stock-filters").onclick = function() {
-  const cats = Array.from(document.getElementById("stock-filter-categories").selectedOptions).map(opt => opt.value);
-  const whs = Array.from(document.getElementById("stock-filter-warehouses").selectedOptions).map(opt => opt.value);
-  const prods = Array.from(document.getElementById("stock-filter-products").selectedOptions).map(opt => opt.value);
+// Botones y búsqueda en tiempo real / Enter para filtros de Stock Global
+function applyStockGlobalFilters() {
+  const catEl = document.getElementById("stock-filter-categories");
+  const whEl = document.getElementById("stock-filter-warehouses");
+  const prodEl = document.getElementById("stock-filter-products");
+  const nameEl = document.getElementById("stock-filter-product-name");
+
+  const cats = catEl ? Array.from(catEl.selectedOptions).map(opt => opt.value) : [];
+  const whs = whEl ? Array.from(whEl.selectedOptions).map(opt => opt.value) : [];
+  const prods = prodEl ? Array.from(prodEl.selectedOptions).map(opt => opt.value) : [];
 
   const norm = str => str ? str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() : "";
-  const productNameSearch = norm(document.getElementById("stock-filter-product-name").value.trim());
+  const productNameSearch = norm(nameEl ? nameEl.value.trim() : "");
 
   activeStockFilters = { categories: cats, warehouses: whs, products: prods, productName: productNameSearch };
   renderStockProjectionsTable();
-};
+}
+
+const stockGlobalNameInput = document.getElementById("stock-filter-product-name");
+if (stockGlobalNameInput) {
+  stockGlobalNameInput.addEventListener("input", applyStockGlobalFilters);
+  stockGlobalNameInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      applyStockGlobalFilters();
+    }
+  });
+}
+
+document.getElementById("btn-apply-stock-filters").onclick = applyStockGlobalFilters;
 
 document.getElementById("btn-clear-stock-filters").onclick = function() {
   document.getElementById("stock-filter-categories").selectedIndex = -1;
