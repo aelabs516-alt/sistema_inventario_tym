@@ -105,24 +105,29 @@ const State = {
   rotulos: [],
   facturacion: [],
   
-  save() {
-    const metadataState = {
-      backup: this.backup,
-      backupsLog: this.backupsLog,
-      pedidosAccesorios: this.pedidosAccesorios,
-      rotulos: this.rotulos,
-      simulations: this.simulations
-    };
-    fetch('/api/sync-metadata', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(metadataState)
-    }).then(res => {
-      if (res.status === 401) {
-         State.activeUser = null;
-         if (typeof showLogin === 'function') showLogin();
-      }
-    }).catch(e => console.error("Error al sincronizar metadata:", e));
+  save(onlyKeys = null) {
+    const metadataKeys = ['backup', 'backupsLog', 'pedidosAccesorios', 'rotulos', 'simulations'];
+    const shouldSyncMetadata = !Array.isArray(onlyKeys) || onlyKeys.some(k => metadataKeys.includes(k));
+
+    if (shouldSyncMetadata) {
+      const metadataState = {
+        backup: this.backup,
+        backupsLog: this.backupsLog,
+        pedidosAccesorios: this.pedidosAccesorios,
+        rotulos: this.rotulos,
+        simulations: this.simulations
+      };
+      fetch('/api/sync-metadata', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(metadataState)
+      }).then(res => {
+        if (res.status === 401) {
+           State.activeUser = null;
+           if (typeof showLogin === 'function') showLogin();
+        }
+      }).catch(e => console.error("Error al sincronizar metadata:", e));
+    }
 
     if (typeof previousStateSnapshot === 'undefined' || !previousStateSnapshot) return;
 
@@ -141,7 +146,11 @@ const State = {
       { key: 'garantias', idField: 'id' }
     ];
 
-    models.forEach(model => {
+    const targetModels = Array.isArray(onlyKeys)
+      ? models.filter(m => onlyKeys.includes(m.key))
+      : models;
+
+    targetModels.forEach(model => {
       const currentList = this[model.key] || [];
       const previousList = previousStateSnapshot[model.key] || [];
       
@@ -158,6 +167,7 @@ const State = {
               fetch(`/api/${model.key}/${encodeURIComponent(item)}`, { method: 'DELETE' });
            }
         });
+        previousStateSnapshot[model.key] = [...currentList];
         return;
       }
 
@@ -171,6 +181,7 @@ const State = {
         if (item && item[model.idField]) previousMap.set(item[model.idField], item);
       });
 
+      const nextSnapshotList = [];
       currentMap.forEach((item, id) => {
         const prevItem = previousMap.get(id);
         if (!prevItem || JSON.stringify(item) !== JSON.stringify(prevItem)) {
@@ -179,6 +190,9 @@ const State = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(item)
           });
+          nextSnapshotList.push(JSON.parse(JSON.stringify(item)));
+        } else {
+          nextSnapshotList.push(prevItem);
         }
       });
 
@@ -187,9 +201,9 @@ const State = {
           fetch(`/api/${model.key}/${encodeURIComponent(id)}`, { method: 'DELETE' });
         }
       });
-    });
 
-    previousStateSnapshot = JSON.parse(JSON.stringify(this));
+      previousStateSnapshot[model.key] = nextSnapshotList;
+    });
   }
 };
 
@@ -4999,29 +5013,18 @@ function openDocumentDetailModal(id, type) {
     document.getElementById("btn-re-export-pdf").onclick = async function() {
       const btn = this;
       btn.disabled = true;
-      btn.innerHTML = `<i data-lucide="loader" class="spin"></i> Generando PDF...`;
-      lucide.createIcons();
+      btn.innerHTML = `<svg class="spin" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Generando PDF...`;
       
-      const printElement = document.getElementById("modal-invoice-print-area");
-      
-      const opt = {
-        margin:       0.2,
-        filename:     `${doc.subType || doc.docType || 'Factura'}_${doc.id}_${doc.client}.pdf`,
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true, logging: false },
-        jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
-      };
-      
+      const filename = `${doc.subType || doc.docType || 'Factura'}_${doc.id}_${doc.client}.pdf`;
       try {
-        await html2pdf().set(opt).from(printElement).save();
+        await exportFacturaVectorPDF(doc, filename);
       } catch (err) {
         console.error(err);
-        showCustomAlert("Error al generar el PDF.");
+        showCustomAlert("Error al generar el PDF.", "error");
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Exportar PDF`;
       }
-      
-      btn.disabled = false;
-      btn.innerHTML = `<i data-lucide="download"></i> Exportar PDF`;
-      lucide.createIcons();
     };
     return;
   }
@@ -6997,37 +7000,58 @@ function base64ToUint8Array(base64) {
 }
 
 let currentPdfRenderTask = null;
+const rotuloTemplateCache = {};
+let activeTemplateReadyPromise = Promise.resolve();
+let isExportingRotulo = false;
+
+function getJsPDFConstructor() {
+  return (window.jspdf && window.jspdf.jsPDF) || window.jsPDF || null;
+}
+
+function paintCachedRotuloToDom(cached, type) {
+  const canvas = document.getElementById("rotulo-canvas-background");
+  if (!canvas || !cached) return;
+  canvas.width = cached.bitmapCanvas.width;
+  canvas.height = cached.bitmapCanvas.height;
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(cached.bitmapCanvas, 0, 0);
+  alignFieldsWithTextItems(cached.textItems, cached.pageWidth, cached.pageHeight, type);
+}
 
 function renderPdfTemplate(base64Data, type) {
+  if (rotuloTemplateCache[type]) {
+    paintCachedRotuloToDom(rotuloTemplateCache[type], type);
+    activeTemplateReadyPromise = Promise.resolve(rotuloTemplateCache[type]);
+    return activeTemplateReadyPromise;
+  }
+
+  if (currentPdfRenderTask) {
+    try {
+      currentPdfRenderTask.cancel();
+    } catch (e) {}
+    currentPdfRenderTask = null;
+  }
+
   const pdfData = base64ToUint8Array(base64Data);
-  
-  pdfjsLib.getDocument({ data: pdfData }).promise.then(pdf => {
+  let loadedPdfDoc = null;
+
+  activeTemplateReadyPromise = pdfjsLib.getDocument({ data: pdfData }).promise.then(pdf => {
+    loadedPdfDoc = pdf;
     return pdf.getPage(1);
   }).then(page => {
-    const canvas = document.getElementById("rotulo-canvas-background");
-    if (!canvas) return page;
-    const ctx = canvas.getContext("2d");
-    
-    // Render at scale 2.5 for high quality
     const scale = 2.5;
     const viewport = page.getViewport({ scale: scale });
-    
-    canvas.width = viewport.width;
-    canvas.height = viewport.height;
-    
-    const renderContext = {
-      canvasContext: ctx,
+    const offCanvas = document.createElement("canvas");
+    offCanvas.width = viewport.width;
+    offCanvas.height = viewport.height;
+    const offCtx = offCanvas.getContext("2d");
+
+    currentPdfRenderTask = page.render({
+      canvasContext: offCtx,
       viewport: viewport
-    };
-    
-    // Cancel active render task if any to prevent overlapping
-    if (currentPdfRenderTask) {
-      try {
-        currentPdfRenderTask.cancel();
-      } catch (e) {}
-    }
-    
-    currentPdfRenderTask = page.render(renderContext);
+    });
+
     return currentPdfRenderTask.promise.then(() => {
       // Actualizar dirección del remitente en el lienzo del rótulo (Calle 76 # 45A-11 Piso 4)
       const addrCoords = {
@@ -7040,25 +7064,51 @@ function renderPdfTemplate(base64Data, type) {
       const canvasY = viewport.height - (addrCoords.y * scale);
       const fontPx = 13.7523 * scale;
 
-      ctx.save();
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(canvasX - (2 * scale), canvasY - (11.2 * scale), 182 * scale, 12.8 * scale);
-      ctx.fillStyle = "#565656";
-      ctx.font = `600 ${fontPx}px 'Poppins', 'Century Gothic', 'Segoe UI', Arial, sans-serif`;
-      ctx.textBaseline = "alphabetic";
-      ctx.fillText("Calle 76 # 45A-11 Piso 4", canvasX, canvasY);
-      ctx.restore();
+      offCtx.save();
+      offCtx.fillStyle = "#ffffff";
+      offCtx.fillRect(canvasX - (2 * scale), canvasY - (11.2 * scale), 182 * scale, 12.8 * scale);
+      offCtx.fillStyle = "#565656";
+      offCtx.font = `600 ${fontPx}px 'Poppins', 'Century Gothic', 'Segoe UI', Arial, sans-serif`;
+      offCtx.textBaseline = "alphabetic";
+      offCtx.fillText("Calle 76 # 45A-11 Piso 4", canvasX, canvasY);
+      offCtx.restore();
 
-      return page;
+      return page.getTextContent().then(textContent => {
+        const cached = {
+          bitmapCanvas: offCanvas,
+          textItems: textContent.items || [],
+          pageWidth: page.view[2],
+          pageHeight: page.view[3]
+        };
+        rotuloTemplateCache[type] = cached;
+        return cached;
+      });
     });
-  }).then(page => {
+  }).then(cached => {
     currentPdfRenderTask = null;
-    console.log("Template PDF renderizado correctamente.");
-    // Align fields dynamically with exact coordinates from the PDF text layer
-    alignFieldsWithPdf(page, type);
+    if (loadedPdfDoc) {
+      try {
+        loadedPdfDoc.cleanup();
+        loadedPdfDoc.destroy();
+      } catch (e) {}
+      loadedPdfDoc = null;
+    }
+    if (selectedLabelType === type) {
+      paintCachedRotuloToDom(cached, type);
+    }
+    return cached;
   }).catch(err => {
-    console.error("Error al renderizar la plantilla PDF:", err);
+    currentPdfRenderTask = null;
+    if (loadedPdfDoc) {
+      try { loadedPdfDoc.destroy(); } catch (e) {}
+      loadedPdfDoc = null;
+    }
+    if (err && err.name !== "RenderingCancelledException") {
+      console.error("Error al renderizar la plantilla PDF:", err);
+    }
   });
+
+  return activeTemplateReadyPromise;
 }
 
 function applyFieldCoordinates(type) {
@@ -7107,33 +7157,31 @@ function applyFieldCoordinates(type) {
   });
 }
 
-function alignFieldsWithPdf(page, type) {
-  page.getTextContent().then(textContent => {
-    const page_width = page.view[2];
-    const page_height = page.view[3];
-    
+function alignFieldsWithTextItems(items, page_width, page_height, type) {
+  try {
     const wrapper = document.getElementById("rotulo-scaled-wrapper");
     if (!wrapper) return;
     const wrapperWidth = parseFloat(wrapper.style.width) || wrapper.offsetWidth;
     const wrapperHeight = parseFloat(wrapper.style.height) || wrapper.offsetHeight;
-    
+    if (!wrapperWidth || !wrapperHeight || !page_width || !page_height) return;
+
     const scaleX = wrapperWidth / page_width;
     const scaleY = wrapperHeight / page_height;
     const fontSize = (wrapperWidth * 0.02) + "px";
-    
+
     const defaults = FIELD_COORDINATES[type];
     const fieldsFound = { nombre: false, cc: false, celular: false, ciudad: false, direccion: false };
-    
-    textContent.items.forEach(item => {
-      const str = item.str.trim().toUpperCase();
+
+    (items || []).forEach(item => {
+      const str = (item.str || "").trim().toUpperCase();
       const pdfX = item.transform[4];
       const pdfY = item.transform[5];
       const htmlX = pdfX * scaleX;
       const htmlY = (page_height - pdfY) * scaleY;
-      
+
       const topPos = (htmlY - (wrapperWidth * 0.02 * 0.9)) + "px";
       const spacing = 8;
-      
+
       if (str.includes("NOMBRE")) {
         const labelWidthHtml = item.width * scaleX;
         const valEl = document.getElementById("rotulo-val-nombre");
@@ -7190,11 +7238,10 @@ function alignFieldsWithPdf(page, type) {
         }
       }
     });
-    
-    // Fallback for fields not resolved dynamically
+
     const fields = ["nombre", "cc", "celular", "ciudad", "direccion"];
     fields.forEach(field => {
-      if (!fieldsFound[field]) {
+      if (!fieldsFound[field] && defaults && defaults[field]) {
         const valEl = document.getElementById(`rotulo-val-${field}`);
         if (valEl) {
           valEl.style.left = (parseFloat(defaults[field].left) / 100 * wrapperWidth) + "px";
@@ -7204,214 +7251,94 @@ function alignFieldsWithPdf(page, type) {
         }
       }
     });
-  }).catch(err => {
+  } catch (err) {
     console.error("Error aligning fields dynamically:", err);
-  });
+  }
 }
 
-function initRotulosModule() {
-  selectedLabelType = "T&M";
-  
+function setRotuloTypeUI(type) {
+  selectedLabelType = type;
   const btnTym = document.getElementById("btn-select-label-tym");
   const btnMe = document.getElementById("btn-select-label-me");
   const btnEnergia = document.getElementById("btn-select-label-energia");
-  const form = document.getElementById("form-rotulo-envio");
-  const btnExportar = document.getElementById("btn-exportar-rotulo-pdf");
-  
-  form.reset();
+  const badge = document.getElementById("preview-badge-type");
+  const meExtra = document.getElementById("rotulo-me-extra-fields");
 
-  // Clonar inputs de Cédula y Celular para limpiar event listeners previos
-  const ccInput = document.getElementById("rotulo-cc");
-  const freshCc = ccInput.cloneNode(true);
-  ccInput.parentNode.replaceChild(freshCc, ccInput);
-  attachIdCardInputFormat(freshCc);
-
-  const celularInput = document.getElementById("rotulo-celular");
-  const freshCelular = celularInput.cloneNode(true);
-  celularInput.parentNode.replaceChild(freshCelular, celularInput);
-  attachPhoneInputFormat(freshCelular);
-  
-  // Render default T&M template & apply positions
-  renderPdfTemplate(ROTULO_TEMPLATE_TYM_B64, "T&M");
-  applyFieldCoordinates("T&M");
-  
-  updateRotuloPreview();
-  checkRotuloFormValidity();
-
-  const prodSelect = document.getElementById("rotulo-me-producto");
-  prodSelect.innerHTML = '<option value="">Seleccione un producto ME / Accesorios ME</option>';
-  const sortedMeProducts = State.products.filter(p => p.category === "ME" || p.category === "Accesorios ME").sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
-  sortedMeProducts.forEach(p => {
-    const opt = document.createElement("option");
-    opt.value = p.sku;
-    opt.textContent = p.name;
-    prodSelect.appendChild(opt);
-  });
-  prodSelect.onchange = function() {
-    const serialSelect = document.getElementById("rotulo-me-serial");
-    serialSelect.innerHTML = '<option value="">Seleccione...</option>';
-    const selectedSku = this.value;
-    if (selectedSku) {
-      const product = State.products.find(p => p.sku === selectedSku);
-      
-      if (product && product.category === "Accesorios ME") {
-        serialSelect.disabled = true;
-        const opt = document.createElement("option");
-        opt.value = "N/A";
-        opt.textContent = "NO APLICA";
-        serialSelect.appendChild(opt);
-        serialSelect.value = "N/A";
-      } else {
-        serialSelect.disabled = false;
-        const allSerials = getCreatedSerialsForSku(selectedSku);
-        allSerials.forEach(s => {
-          const opt = document.createElement("option");
-          opt.value = s;
-          opt.textContent = s;
-          serialSelect.appendChild(opt);
-        });
-      }
-    } else {
-      serialSelect.disabled = true;
-    }
-    checkRotuloFormValidity();
-  };
-  const serialSelect = document.getElementById("rotulo-me-serial");
-  serialSelect.onchange = checkRotuloFormValidity;
-  serialSelect.addEventListener("mousedown", function(e) {
-    const selectedSku = document.getElementById("rotulo-me-producto").value;
-    const product = State.products.find(p => p.sku === selectedSku);
-    if (product && product.category !== "Accesorios ME") {
-      e.preventDefault();
-      openRotuloSerialModal(selectedSku);
-    }
-  });
-  serialSelect.addEventListener("keydown", function(e) {
-    const selectedSku = document.getElementById("rotulo-me-producto").value;
-    const product = State.products.find(p => p.sku === selectedSku);
-    if (product && product.category !== "Accesorios ME") {
-      if (e.key === " " || e.key === "Enter" || e.key === "ArrowDown" || e.key === "ArrowUp") {
-        e.preventDefault();
-        openRotuloSerialModal(selectedSku);
-      }
-    }
-  });
-  document.getElementById("rotulo-me-transportadora").onchange = checkRotuloFormValidity;
-
-  btnTym.classList.add("active");
-  btnTym.classList.remove("btn-outline-primary");
-  btnTym.classList.add("btn-primary");
-  
-  btnMe.classList.remove("active");
-  btnMe.classList.add("btn-outline-secondary");
-  btnMe.classList.remove("btn-secondary");
-
+  if (btnTym) {
+    const active = type === "T&M";
+    btnTym.classList.toggle("active", active);
+    btnTym.classList.toggle("btn-primary", active);
+    btnTym.classList.toggle("btn-outline-primary", !active);
+  }
+  if (btnMe) {
+    const active = type === "ME";
+    btnMe.classList.toggle("active", active);
+    btnMe.classList.toggle("btn-secondary", active);
+    btnMe.classList.toggle("btn-outline-secondary", !active);
+  }
   if (btnEnergia) {
-    btnEnergia.classList.remove("active");
-    btnEnergia.classList.add("btn-outline-secondary");
-    btnEnergia.classList.remove("btn-secondary");
+    const active = type === "Energía Solar";
+    btnEnergia.classList.toggle("active", active);
+    btnEnergia.classList.toggle("btn-secondary", active);
+    btnEnergia.classList.toggle("btn-outline-secondary", !active);
   }
 
-  btnTym.onclick = function() {
-    selectedLabelType = "T&M";
-    
-    btnTym.classList.add("active");
-    btnTym.classList.remove("btn-outline-primary");
-    btnTym.classList.add("btn-primary");
-    
-    btnMe.classList.remove("active");
-    btnMe.classList.add("btn-outline-secondary");
-    btnMe.classList.remove("btn-secondary");
+  if (badge) {
+    badge.textContent = type;
+    badge.className = type === "T&M"
+      ? "badge badge-success"
+      : (type === "ME" ? "badge badge-teal" : "badge badge-warning");
+  }
 
-    btnEnergia.classList.remove("active");
-    btnEnergia.classList.add("btn-outline-secondary");
-    btnEnergia.classList.remove("btn-secondary");
-    
-    document.getElementById("preview-badge-type").textContent = "T&M";
-    document.getElementById("preview-badge-type").className = "badge badge-success";
-    
-    document.getElementById("rotulo-me-extra-fields").classList.add("hidden");
-    renderPdfTemplate(ROTULO_TEMPLATE_TYM_B64, "T&M");
-    applyFieldCoordinates("T&M");
-    updateRotuloPreview();
-    checkRotuloFormValidity();
-  };
+  if (meExtra) {
+    meExtra.classList.toggle("hidden", type !== "ME");
+  }
 
-  btnMe.onclick = function() {
-    selectedLabelType = "ME";
-    
-    btnMe.classList.add("active");
-    btnMe.classList.remove("btn-outline-secondary");
-    btnMe.classList.add("btn-secondary");
-    
-    btnTym.classList.remove("active");
-    btnTym.classList.add("btn-outline-primary");
-    btnTym.classList.remove("btn-primary");
+  applyFieldCoordinates(type);
+  const tplB64 = type === "ME"
+    ? ROTULO_TEMPLATE_ME_B64
+    : (type === "Energía Solar" ? ROTULO_TEMPLATE_ENERGIA_B64 : ROTULO_TEMPLATE_TYM_B64);
+  renderPdfTemplate(tplB64, type);
+  updateRotuloPreview();
+  checkRotuloFormValidity();
+}
 
-    btnEnergia.classList.remove("active");
-    btnEnergia.classList.add("btn-outline-secondary");
-    btnEnergia.classList.remove("btn-secondary");
-    
-    document.getElementById("preview-badge-type").textContent = "ME";
-    document.getElementById("preview-badge-type").className = "badge badge-teal";
-    
-    document.getElementById("rotulo-me-extra-fields").classList.remove("hidden");
-    renderPdfTemplate(ROTULO_TEMPLATE_ME_B64, "ME");
-    applyFieldCoordinates("ME");
-    updateRotuloPreview();
-    checkRotuloFormValidity();
-  };
-
-  btnEnergia.onclick = function() {
-    selectedLabelType = "Energía Solar";
-    
-    btnEnergia.classList.add("active");
-    btnEnergia.classList.remove("btn-outline-secondary");
-    btnEnergia.classList.add("btn-secondary");
-    
-    btnTym.classList.remove("active");
-    btnTym.classList.add("btn-outline-primary");
-    btnTym.classList.remove("btn-primary");
-    
-    btnMe.classList.remove("active");
-    btnMe.classList.add("btn-outline-secondary");
-    btnMe.classList.remove("btn-secondary");
-    
-    document.getElementById("preview-badge-type").textContent = "Energía Solar";
-    document.getElementById("preview-badge-type").className = "badge badge-warning";
-    
-    document.getElementById("rotulo-me-extra-fields").classList.add("hidden");
-    renderPdfTemplate(ROTULO_TEMPLATE_ENERGIA_B64, "Energía Solar");
-    applyFieldCoordinates("Energía Solar");
-    updateRotuloPreview();
-    checkRotuloFormValidity();
-  };
-
-  const inputs = form.querySelectorAll("input, select");
-  inputs.forEach(input => {
-    input.oninput = function() {
-      if (this.tagName === "INPUT" && this.type !== "email") {
-        this.value = this.value.toUpperCase();
-      }
-      updateRotuloPreview();
-      checkRotuloFormValidity();
-    };
-  });
+function populateRotuloDynamicOptions() {
+  const prodSelect = document.getElementById("rotulo-me-producto");
+  if (prodSelect) {
+    const prevVal = prodSelect.value;
+    prodSelect.innerHTML = '<option value="">Seleccione un producto ME / Accesorios ME</option>';
+    const sortedMeProducts = State.products
+      .filter(p => p.category === "ME" || p.category === "Accesorios ME")
+      .sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
+    sortedMeProducts.forEach(p => {
+      const opt = document.createElement("option");
+      opt.value = p.sku;
+      opt.textContent = p.name;
+      prodSelect.appendChild(opt);
+    });
+    if (prevVal && prodSelect.querySelector(`option[value="${prevVal}"]`)) {
+      prodSelect.value = prevVal;
+    }
+  }
 
   const transSelect = document.getElementById("rotulo-me-transportadora");
-  if (transSelect && transSelect.options.length <= 1) {
+  if (transSelect) {
+    const prevTrans = transSelect.value;
+    transSelect.innerHTML = '<option value="">Seleccione...</option>';
     State.carriers.forEach(c => {
       const opt = document.createElement("option");
       opt.value = c;
       opt.textContent = c;
       transSelect.appendChild(opt);
     });
+    if (prevTrans && transSelect.querySelector(`option[value="${prevTrans}"]`)) {
+      transSelect.value = prevTrans;
+    }
   }
 
   const deptoSelect = document.getElementById("rotulo-departamento");
-  const ciudadSelect = document.getElementById("rotulo-ciudad");
-  
-  if (typeof COLOMBIA_DATA !== "undefined" && deptoSelect.options.length <= 1) {
+  if (deptoSelect && typeof COLOMBIA_DATA !== "undefined" && deptoSelect.options.length <= 1) {
     Object.keys(COLOMBIA_DATA).sort().forEach(depto => {
       const opt = document.createElement("option");
       opt.value = depto;
@@ -7419,28 +7346,155 @@ function initRotulosModule() {
       deptoSelect.appendChild(opt);
     });
   }
+}
 
-  deptoSelect.addEventListener("change", function() {
-    ciudadSelect.innerHTML = '<option value="">Seleccione ciudad...</option>';
-    if (this.value && typeof COLOMBIA_DATA !== "undefined") {
-      ciudadSelect.disabled = false;
-      const ciudades = COLOMBIA_DATA[this.value].sort();
-      ciudades.forEach(c => {
-        const opt = document.createElement("option");
-        opt.value = c;
-        opt.textContent = c;
-        ciudadSelect.appendChild(opt);
+function resetRotuloFormFields(keepLabelType = true) {
+  const form = document.getElementById("form-rotulo-envio");
+  if (form) form.reset();
+
+  const ciudadSelect = document.getElementById("rotulo-ciudad");
+  if (ciudadSelect) {
+    ciudadSelect.innerHTML = '<option value="">Depto. primero</option>';
+    ciudadSelect.disabled = true;
+  }
+
+  const serialSelect = document.getElementById("rotulo-me-serial");
+  if (serialSelect) {
+    serialSelect.innerHTML = '<option value="">Seleccione producto primero</option>';
+    serialSelect.disabled = true;
+  }
+
+  const targetType = keepLabelType ? (selectedLabelType || "T&M") : "T&M";
+  setRotuloTypeUI(targetType);
+}
+
+function initRotulosModule() {
+  const form = document.getElementById("form-rotulo-envio");
+  if (!form) return;
+
+  populateRotuloDynamicOptions();
+
+  if (!form.dataset.rotuloBound) {
+    form.dataset.rotuloBound = "true";
+
+    const ccInput = document.getElementById("rotulo-cc");
+    const celularInput = document.getElementById("rotulo-celular");
+    if (ccInput) attachIdCardInputFormat(ccInput);
+    if (celularInput) attachPhoneInputFormat(celularInput);
+
+    const inputs = form.querySelectorAll("input, select");
+    inputs.forEach(input => {
+      input.addEventListener("input", function() {
+        if (this.tagName === "INPUT" && this.type !== "email" && this.id !== "rotulo-cc" && this.id !== "rotulo-celular") {
+          const start = this.selectionStart;
+          const end = this.selectionEnd;
+          this.value = this.value.toUpperCase();
+          if (typeof start === "number" && typeof end === "number") {
+            try { this.setSelectionRange(start, end); } catch (e) {}
+          }
+        }
+        updateRotuloPreview();
+        checkRotuloFormValidity();
       });
-    } else {
-      ciudadSelect.disabled = true;
-    }
-    updateRotuloPreview();
-    checkRotuloFormValidity();
-  });
+    });
 
-  btnExportar.onclick = function() {
-    exportarRotuloPDF();
-  };
+    const deptoSelect = document.getElementById("rotulo-departamento");
+    const ciudadSelect = document.getElementById("rotulo-ciudad");
+    if (deptoSelect && ciudadSelect) {
+      deptoSelect.addEventListener("change", function() {
+        ciudadSelect.innerHTML = '<option value="">Seleccione ciudad...</option>';
+        if (this.value && typeof COLOMBIA_DATA !== "undefined" && COLOMBIA_DATA[this.value]) {
+          ciudadSelect.disabled = false;
+          const ciudades = [...COLOMBIA_DATA[this.value]].sort();
+          ciudades.forEach(c => {
+            const opt = document.createElement("option");
+            opt.value = c;
+            opt.textContent = c;
+            ciudadSelect.appendChild(opt);
+          });
+        } else {
+          ciudadSelect.innerHTML = '<option value="">Depto. primero</option>';
+          ciudadSelect.disabled = true;
+        }
+        updateRotuloPreview();
+        checkRotuloFormValidity();
+      });
+      ciudadSelect.addEventListener("change", function() {
+        updateRotuloPreview();
+        checkRotuloFormValidity();
+      });
+    }
+
+    const prodSelect = document.getElementById("rotulo-me-producto");
+    const serialSelect = document.getElementById("rotulo-me-serial");
+    const transSelect = document.getElementById("rotulo-me-transportadora");
+
+    if (prodSelect && serialSelect) {
+      prodSelect.addEventListener("change", function() {
+        serialSelect.innerHTML = '<option value="">Seleccione...</option>';
+        const selectedSku = this.value;
+        if (selectedSku) {
+          const product = State.products.find(p => p.sku === selectedSku);
+          if (product && product.category === "Accesorios ME") {
+            serialSelect.disabled = true;
+            const opt = document.createElement("option");
+            opt.value = "N/A";
+            opt.textContent = "NO APLICA";
+            serialSelect.appendChild(opt);
+            serialSelect.value = "N/A";
+          } else {
+            serialSelect.disabled = false;
+            const allSerials = getCreatedSerialsForSku(selectedSku);
+            allSerials.forEach(s => {
+              const opt = document.createElement("option");
+              opt.value = s;
+              opt.textContent = s;
+              serialSelect.appendChild(opt);
+            });
+          }
+        } else {
+          serialSelect.disabled = true;
+        }
+        checkRotuloFormValidity();
+      });
+
+      serialSelect.addEventListener("change", checkRotuloFormValidity);
+      serialSelect.addEventListener("mousedown", function(e) {
+        const selectedSku = prodSelect.value;
+        const product = State.products.find(p => p.sku === selectedSku);
+        if (product && product.category !== "Accesorios ME") {
+          e.preventDefault();
+          openRotuloSerialModal(selectedSku);
+        }
+      });
+      serialSelect.addEventListener("keydown", function(e) {
+        const selectedSku = prodSelect.value;
+        const product = State.products.find(p => p.sku === selectedSku);
+        if (product && product.category !== "Accesorios ME") {
+          if (e.key === " " || e.key === "Enter" || e.key === "ArrowDown" || e.key === "ArrowUp") {
+            e.preventDefault();
+            openRotuloSerialModal(selectedSku);
+          }
+        }
+      });
+    }
+
+    if (transSelect) {
+      transSelect.addEventListener("change", checkRotuloFormValidity);
+    }
+
+    const btnTym = document.getElementById("btn-select-label-tym");
+    const btnMe = document.getElementById("btn-select-label-me");
+    const btnEnergia = document.getElementById("btn-select-label-energia");
+    const btnExportar = document.getElementById("btn-exportar-rotulo-pdf");
+
+    if (btnTym) btnTym.addEventListener("click", () => setRotuloTypeUI("T&M"));
+    if (btnMe) btnMe.addEventListener("click", () => setRotuloTypeUI("ME"));
+    if (btnEnergia) btnEnergia.addEventListener("click", () => setRotuloTypeUI("Energía Solar"));
+    if (btnExportar) btnExportar.addEventListener("click", exportarRotuloPDF);
+  }
+
+  resetRotuloFormFields(false);
 }
 
 function updateRotuloPreview() {
@@ -7467,6 +7521,7 @@ function checkRotuloFormValidity() {
   const ciudadVal = document.getElementById("rotulo-ciudad").value.trim();
   const direccion = document.getElementById("rotulo-direccion").value.trim();
   const btnExportar = document.getElementById("btn-exportar-rotulo-pdf");
+  if (!btnExportar || isExportingRotulo) return;
 
   let isValid = nombre.length > 0 && cc.length > 0 && celular.length >= 10 && celular.length <= 12 && depto.length > 0 && ciudadVal.length > 0 && direccion.length > 0;
   
@@ -7480,8 +7535,78 @@ function checkRotuloFormValidity() {
   btnExportar.disabled = !isValid;
 }
 
-function exportarRotuloPDF() {
-  const container = document.getElementById("rotulo-pdf-container");
+function drawRotuloFieldText(ctx, text, x, y, maxWidth, fontPx, maxLines) {
+  if (!text || text === "-") return;
+  ctx.save();
+  ctx.font = `600 ${fontPx}px 'Poppins', 'Segoe UI', Arial, sans-serif`;
+  ctx.fillStyle = "#1e293b";
+  ctx.textBaseline = "top";
+
+  const truncateOneLine = (str) => {
+    if (ctx.measureText(str).width <= maxWidth) return str;
+    let out = str;
+    while (out.length > 1 && ctx.measureText(out + "...").width > maxWidth) {
+      out = out.slice(0, -1);
+    }
+    return out + "...";
+  };
+
+  if (maxLines <= 1) {
+    ctx.fillText(truncateOneLine(text), x, y + fontPx * 0.12);
+    ctx.restore();
+    return;
+  }
+
+  // Envoltura hasta maxLines líneas (ej. Dirección con line-height 1.35)
+  const words = text.split(/\s+/).filter(Boolean);
+  const lines = [];
+  let current = "";
+
+  const pushToken = (token) => {
+    const candidate = current ? `${current} ${token}` : token;
+    if (ctx.measureText(candidate).width <= maxWidth) {
+      current = candidate;
+      return;
+    }
+    if (current) {
+      lines.push(current);
+      current = "";
+    }
+    if (ctx.measureText(token).width <= maxWidth) {
+      current = token;
+    } else {
+      let chunk = "";
+      for (let i = 0; i < token.length; i++) {
+        const nextChunk = chunk + token[i];
+        if (ctx.measureText(nextChunk).width > maxWidth && chunk) {
+          lines.push(chunk);
+          chunk = token[i];
+        } else {
+          chunk = nextChunk;
+        }
+      }
+      current = chunk;
+    }
+  };
+
+  words.forEach(pushToken);
+  if (current) lines.push(current);
+
+  const lineStep = fontPx * 1.35;
+  const visibleLines = lines.slice(0, maxLines);
+  if (lines.length > maxLines && visibleLines.length > 0) {
+    visibleLines[maxLines - 1] = truncateOneLine(visibleLines[maxLines - 1] + "...");
+  }
+
+  visibleLines.forEach((ln, idx) => {
+    ctx.fillText(ln, x, y + (fontPx * 0.12) + (idx * lineStep));
+  });
+  ctx.restore();
+}
+
+async function exportarRotuloPDF() {
+  if (isExportingRotulo) return;
+
   const nombre = document.getElementById("rotulo-nombre").value.trim().toUpperCase();
   const cc = document.getElementById("rotulo-cc").value.trim().toUpperCase();
   const celular = document.getElementById("rotulo-celular").value.trim().toUpperCase();
@@ -7490,19 +7615,16 @@ function exportarRotuloPDF() {
   const ciudad = `${ciudadVal} - ${depto}`;
   const direccion = document.getElementById("rotulo-direccion").value.trim().toUpperCase();
   const tipo = selectedLabelType;
+  const filename = `Rotulo_${tipo}_${nombre.replace(/\s+/g, '_')}_${Date.now()}.pdf`;
 
-  const format = tipo === "T&M" ? [5.73, 5.73] : 'letter';
-  const orientation = tipo === "T&M" ? 'portrait' : 'landscape';
-  const opt = {
-    margin:       0,
-    filename:     `Rotulo_${tipo}_${nombre.replace(/\s+/g, '_')}_${Date.now()}.pdf`,
-    image:        { type: 'jpeg', quality: 0.98 },
-    html2canvas:  { scale: 1.5, useCORS: true, logging: false },
-    jsPDF:        { unit: 'in', format: format, orientation: orientation }
-  };
-
-  const nextNumber = State.rotulos.length + 1;
-  const folio = `ROT-${String(nextNumber).padStart(4, '0')}`;
+  let maxRotNum = State.rotulos.length;
+  State.rotulos.forEach(r => {
+    if (r && typeof r.id === "string" && r.id.startsWith("ROT-")) {
+      const n = parseInt(r.id.slice(4), 10);
+      if (!isNaN(n) && n > maxRotNum) maxRotNum = n;
+    }
+  });
+  const folio = `ROT-${String(maxRotNum + 1).padStart(4, '0')}`;
   const fechaStr = new Date().toISOString().split('T')[0];
 
   const nuevoRotulo = {
@@ -7526,41 +7648,116 @@ function exportarRotuloPDF() {
   }
 
   const btnExportar = document.getElementById("btn-exportar-rotulo-pdf");
-  btnExportar.disabled = true;
-  btnExportar.innerHTML = `<i data-lucide="loader"></i> Generando...`;
-  lucide.createIcons();
+  isExportingRotulo = true;
+  if (btnExportar) {
+    btnExportar.disabled = true;
+    btnExportar.innerHTML = `<svg class="spin" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Generando...`;
+  }
 
-    try {
-    // A veces html2canvas se atasca si el canvas no se invalida o hay referencias rotas
-    // Pasamos un objeto html2canvas limpio
-    opt.html2canvas = { scale: 1.5, useCORS: true, logging: false, allowTaint: false };
-    
-    html2pdf().from(container).set(opt).save().then(() => {
-      btnExportar.disabled = false;
-      btnExportar.innerHTML = `<i data-lucide="download-cloud"></i> Exportar en PDF`;
-      if (typeof lucide !== 'undefined') lucide.createIcons();
+  try {
+    // Asegurar que la plantilla en caché esté lista (instantáneo desde la segunda vez)
+    if (!rotuloTemplateCache[tipo]) {
+      await activeTemplateReadyPromise;
+    }
 
-      State.rotulos.push(nuevoRotulo);
-      State.save();
-      
-      showCustomAlert(`Rótulo exportado con éxito. Folio registrado: ${folio}`, "success");
-      
-      document.getElementById("form-rotulo-envio").reset();
-      initRotulosModule();
+    const JsPDFCtor = getJsPDFConstructor();
+    const format = tipo === "T&M" ? [5.73, 5.73] : 'letter';
+    const orientation = tipo === "T&M" ? 'portrait' : 'landscape';
+
+    if (JsPDFCtor) {
+      const containerW = tipo === "T&M" ? 550 : 792;
+      const containerH = tipo === "T&M" ? 550 : 612;
+      const wrapperW = tipo === "T&M" ? 550 : 723;
+      const wrapperH = tipo === "T&M" ? 428 : 439;
+      const offsetX = (containerW - wrapperW) / 2;
+      const offsetY = (containerH - wrapperH) / 2;
+      const exportScale = 2.4;
+
+      const exportCanvas = document.createElement("canvas");
+      exportCanvas.width = Math.round(containerW * exportScale);
+      exportCanvas.height = Math.round(containerH * exportScale);
+      const eCtx = exportCanvas.getContext("2d");
+
+      eCtx.fillStyle = "#ffffff";
+      eCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+
+      const bgSource = (rotuloTemplateCache[tipo] && rotuloTemplateCache[tipo].bitmapCanvas)
+        || document.getElementById("rotulo-canvas-background");
+
+      if (bgSource && bgSource.width > 0 && bgSource.height > 0) {
+        eCtx.drawImage(
+          bgSource,
+          offsetX * exportScale,
+          offsetY * exportScale,
+          wrapperW * exportScale,
+          wrapperH * exportScale
+        );
+      }
+
+      const fieldValues = { nombre, cc, celular, ciudad, direccion };
+      ["nombre", "cc", "celular", "ciudad", "direccion"].forEach(field => {
+        const el = document.getElementById(`rotulo-val-${field}`);
+        if (!el) return;
+        const leftPx = parseFloat(el.style.left) || 0;
+        const topPx = parseFloat(el.style.top) || 0;
+        const widthPx = parseFloat(el.style.width) || (wrapperW * 0.5);
+        const fontSizePx = parseFloat(el.style.fontSize) || (wrapperW * 0.02);
+
+        drawRotuloFieldText(
+          eCtx,
+          fieldValues[field],
+          (offsetX + leftPx) * exportScale,
+          (offsetY + topPx) * exportScale,
+          widthPx * exportScale,
+          fontSizePx * exportScale,
+          field === "direccion" ? 2 : 1
+        );
+      });
+
+      const jpegDataUrl = exportCanvas.toDataURL("image/jpeg", 0.94);
+      exportCanvas.width = 0;
+      exportCanvas.height = 0;
+
+      const pdf = new JsPDFCtor({
+        unit: "in",
+        format: format,
+        orientation: orientation,
+        compress: true
+      });
+      const pageW = pdf.internal.pageSize.getWidth();
+      const pageH = pdf.internal.pageSize.getHeight();
+      pdf.addImage(jpegDataUrl, "JPEG", 0, 0, pageW, pageH, undefined, "FAST");
+      pdf.save(filename);
+    } else {
+      const container = document.getElementById("rotulo-pdf-container");
+      await html2pdf().from(container).set({
+        margin: 0,
+        filename: filename,
+        image: { type: 'jpeg', quality: 0.95 },
+        html2canvas: { scale: 1.5, useCORS: true, logging: false, allowTaint: false },
+        jsPDF: { unit: 'in', format: format, orientation: orientation }
+      }).save();
+    }
+
+    State.rotulos.push(nuevoRotulo);
+    State.save(['rotulos']);
+
+    const docsMod = document.getElementById("module-documentos");
+    if (docsMod && !docsMod.classList.contains("hidden")) {
       renderDocumentsHistory();
-    }).catch(err => {
-      console.error("Error en html2pdf:", err);
-      showCustomAlert("Hubo un error interno al generar el PDF.", "error");
-      btnExportar.disabled = false;
-      btnExportar.innerHTML = `<i data-lucide="download-cloud"></i> Exportar en PDF`;
-      if (typeof lucide !== 'undefined') lucide.createIcons();
-    });
-  } catch (e) {
-    console.error("Excepción síncrona en exportarRotuloPDF:", e);
-    showCustomAlert("Hubo un error al preparar la generación del PDF.", "error");
-    btnExportar.disabled = false;
-    btnExportar.innerHTML = `<i data-lucide="download-cloud"></i> Exportar en PDF`;
-    if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    resetRotuloFormFields(true);
+    showCustomAlert(`Rótulo exportado con éxito. Folio registrado: ${folio}`, "success");
+  } catch (err) {
+    console.error("Error al exportar rótulo PDF:", err);
+    showCustomAlert("Hubo un error al generar el PDF del rótulo.", "error");
+  } finally {
+    isExportingRotulo = false;
+    if (btnExportar) {
+      btnExportar.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"/></svg> Exportar en PDF`;
+    }
+    checkRotuloFormValidity();
   }
 }
 
@@ -8696,8 +8893,330 @@ function updatePrintTemplate() {
   document.getElementById("print-observaciones").textContent = obs;
 }
 
+let cachedFacturaLogoAsset = null;
+
+function getOptimizedFacturaLogo() {
+  if (cachedFacturaLogoAsset) return cachedFacturaLogoAsset;
+  const imgEl = document.getElementById("print-logo");
+  if (!imgEl || !imgEl.complete || !imgEl.naturalWidth || !imgEl.naturalHeight) {
+    return null;
+  }
+  try {
+    const targetW = Math.min(360, imgEl.naturalWidth);
+    const ratio = imgEl.naturalWidth / imgEl.naturalHeight;
+    const targetH = Math.max(1, Math.round(targetW / ratio));
+    const c = document.createElement("canvas");
+    c.width = targetW;
+    c.height = targetH;
+    const ctx = c.getContext("2d");
+    ctx.drawImage(imgEl, 0, 0, targetW, targetH);
+    cachedFacturaLogoAsset = {
+      dataUrl: c.toDataURL("image/png"),
+      ratio: ratio
+    };
+    c.width = 0;
+    c.height = 0;
+    return cachedFacturaLogoAsset;
+  } catch (e) {
+    return { dataUrl: imgEl.src, ratio: imgEl.naturalWidth / imgEl.naturalHeight };
+  }
+}
+
+function pdfSafeStr(val) {
+  if (val === null || val === undefined) return "";
+  return String(val).replace(/[^\x09\x0A\x0D\x20-\xFF]/g, "").trim();
+}
+
+async function exportFacturaVectorPDF(docData, customFilename) {
+  const JsPDFCtor = getJsPDFConstructor();
+  const docTypeLabel = pdfSafeStr(docData.subType || docData.docType || "Cotización");
+  const docId = pdfSafeStr(docData.id || "");
+  const clientName = pdfSafeStr(docData.client || "").toUpperCase();
+  const filename = customFilename || `${docTypeLabel}_${docId}_${clientName}.pdf`;
+
+  if (!JsPDFCtor) {
+    // Fallback solo si el CDN de jsPDF no cargó
+    const element = document.getElementById("factura-print-template");
+    const clone = element.cloneNode(true);
+    clone.style.transform = "none";
+    await html2pdf().set({
+      margin: 0,
+      filename: filename,
+      image: { type: 'jpeg', quality: 0.95 },
+      html2canvas: { scale: 1.5, useCORS: true, logging: false },
+      jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+    }).from(clone).save();
+    return;
+  }
+
+  // Generación vectorial nativa ultrarrápida (< 30 ms) en tamaño Carta (612 x 792 pt)
+  const pdf = new JsPDFCtor({
+    unit: "pt",
+    format: "letter",
+    orientation: "portrait",
+    compress: true
+  });
+
+  const marginX = 36; // 0.5 in (48px a 96dpi)
+  const contentW = 540; // 612 - 72
+  const rightX = marginX + contentW; // 576
+  const pageBottomLimit = 748;
+
+  // --- CABECERA ---
+  let y = 54;
+  const titlePrefix = `${docTypeLabel} No. `;
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(20);
+  pdf.setTextColor(51, 51, 51);
+  pdf.text(titlePrefix, marginX, y);
+
+  const prefixW = pdf.getTextWidth(titlePrefix);
+  pdf.setFont("helvetica", "bold");
+  pdf.setTextColor(15, 118, 110); // #0f766e
+  pdf.text(docId, marginX + prefixW, y);
+
+  y += 18;
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(10.5);
+  pdf.setTextColor(15, 118, 110);
+  pdf.text("TECNOLOGÍA Y MOVILIDAD SAS", marginX, y);
+
+  y += 14;
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(9);
+  pdf.setTextColor(51, 51, 51);
+  const companyLines = [
+    "NIT 901.818.992-1",
+    "CEL: (57) 3247772247",
+    "Calle 76 # 45A-11 Piso 4",
+    "Itagüí - Colombia",
+    "gerencia@tecnologiaymovilidad.com"
+  ];
+  companyLines.forEach(line => {
+    pdf.text(line, marginX, y);
+    y += 12.5;
+  });
+
+  const logo = getOptimizedFacturaLogo();
+  if (logo && logo.dataUrl) {
+    const maxLogoW = 132;
+    const maxLogoH = 76;
+    let drawW = maxLogoW;
+    let drawH = drawW / (logo.ratio || 1.07);
+    if (drawH > maxLogoH) {
+      drawH = maxLogoH;
+      drawW = drawH * (logo.ratio || 1.07);
+    }
+    try {
+      pdf.addImage(logo.dataUrl, "PNG", rightX - drawW, 38, drawW, drawH, "tym_logo", "FAST");
+    } catch (e) {}
+  }
+
+  y += 4;
+  pdf.setDrawColor(15, 118, 110);
+  pdf.setLineWidth(1.5);
+  pdf.line(marginX, y, rightX, y);
+
+  // --- DATOS DEL CLIENTE ---
+  y += 18;
+  const ciudadDisplay = docData.ciudad
+    ? pdfSafeStr(`${docData.ciudad}${docData.departamento ? ' - ' + docData.departamento : ''}`).toUpperCase()
+    : "";
+  const nitRaw = pdfSafeStr(docData.nit || "").replace(/\D/g, "");
+  const nitDisplay = nitRaw ? parseInt(nitRaw, 10).toLocaleString("es-CO") : pdfSafeStr(docData.nit || "");
+  const telDisplay = pdfSafeStr(docData.telefono || "");
+  const dirDisplay = pdfSafeStr(docData.direccion || "").toUpperCase();
+  const correoDisplay = pdfSafeStr(docData.correo || "").toUpperCase();
+  const fechaDisplay = pdfSafeStr(docData.date || "");
+
+  const drawLabelValue = (label, value, lx, vx, curY, maxW) => {
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(9.5);
+    pdf.setTextColor(51, 51, 51);
+    pdf.text(label, lx, curY);
+    pdf.setFont("helvetica", "normal");
+    if (!value) return 14;
+    const lines = pdf.splitTextToSize(value, maxW);
+    lines.forEach((ln, idx) => {
+      pdf.text(ln, vx, curY + idx * 12);
+    });
+    return Math.max(14, lines.length * 12 + 2);
+  };
+
+  y += drawLabelValue("Fecha:", fechaDisplay, marginX, marginX + 70, y, 200);
+  const hNombre = drawLabelValue("Nombre:", clientName, marginX, marginX + 70, y, 198);
+  const hTel = drawLabelValue("Teléfono:", telDisplay, marginX + 278, marginX + 346, y, 190);
+  y += Math.max(hNombre, hTel);
+
+  const hNit = drawLabelValue("Nit:", nitDisplay, marginX, marginX + 70, y, 198);
+  const hCiudad = drawLabelValue("Ciudad:", ciudadDisplay, marginX + 278, marginX + 346, y, 190);
+  y += Math.max(hNit, hCiudad);
+
+  y += drawLabelValue("Direccion:", dirDisplay, marginX, marginX + 70, y, contentW - 70);
+  y += drawLabelValue("Correo:", correoDisplay, marginX, marginX + 70, y, contentW - 70);
+
+  // --- TABLA DE ÍTEMS ---
+  y += 10;
+  const colWidths = [54, 243, 81, 81, 81]; // 10%, 45%, 15%, 15%, 15% = 540pt
+  const colX = [
+    marginX,
+    marginX + colWidths[0],
+    marginX + colWidths[0] + colWidths[1],
+    marginX + colWidths[0] + colWidths[1] + colWidths[2],
+    marginX + colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3]
+  ];
+
+  const drawItemsHeader = (topY) => {
+    const headerH = 22;
+    pdf.setFillColor(15, 76, 92); // #0f4c5c
+    pdf.setDrawColor(115, 147, 167); // #7393a7
+    pdf.setLineWidth(0.6);
+    for (let i = 0; i < 5; i++) {
+      pdf.rect(colX[i], topY, colWidths[i], headerH, "FD");
+    }
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(9.5);
+    pdf.setTextColor(255, 255, 255);
+    const textY = topY + 14.5;
+    pdf.text("Cantidad", colX[0] + colWidths[0] / 2, textY, { align: "center" });
+    pdf.text("Descripción", colX[1] + 6, textY);
+    pdf.text("Valor Unidad", colX[2] + colWidths[2] - 6, textY, { align: "right" });
+    pdf.text("Valor Dcto", colX[3] + colWidths[3] - 6, textY, { align: "right" });
+    pdf.text("Valor Total", colX[4] + colWidths[4] - 6, textY, { align: "right" });
+    return topY + headerH;
+  };
+
+  y = drawItemsHeader(y);
+
+  let subtotal = 0;
+  let totalDcto = 0;
+  const itemsList = Array.isArray(docData.items) ? docData.items : [];
+
+  itemsList.forEach(item => {
+    if (!item || !item.desc) return;
+    const qty = Number(item.qty) || 0;
+    const unitPrice = Number(item.unitPrice) || 0;
+    const discount = Number(item.discount) || 0;
+    const itemTotal = qty * (unitPrice - discount);
+    subtotal += qty * unitPrice;
+    totalDcto += qty * discount;
+
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(9.2);
+    const descLines = pdf.splitTextToSize(pdfSafeStr(item.desc).toUpperCase(), colWidths[1] - 12);
+    const rowH = Math.max(21, descLines.length * 11.5 + 9);
+
+    if (y + rowH > pageBottomLimit) {
+      pdf.addPage();
+      y = drawItemsHeader(36);
+    }
+
+    pdf.setDrawColor(115, 147, 167);
+    pdf.setLineWidth(0.6);
+    for (let i = 0; i < 5; i++) {
+      pdf.rect(colX[i], y, colWidths[i], rowH, "S");
+    }
+
+    const baseTextY = y + 13.5;
+    pdf.setTextColor(51, 51, 51);
+    pdf.setFont("helvetica", "normal");
+    pdf.text(String(qty), colX[0] + colWidths[0] / 2, baseTextY, { align: "center" });
+    descLines.forEach((ln, idx) => {
+      pdf.text(ln, colX[1] + 6, baseTextY + idx * 11.5);
+    });
+    pdf.text(`$ ${Math.round(unitPrice).toLocaleString("es-CO")}`, colX[2] + colWidths[2] - 6, baseTextY, { align: "right" });
+    pdf.text(`$ ${Math.round(discount).toLocaleString("es-CO")}`, colX[3] + colWidths[3] - 6, baseTextY, { align: "right" });
+
+    pdf.setFont("helvetica", "bold");
+    pdf.text(`$ ${Math.round(itemTotal).toLocaleString("es-CO")}`, colX[4] + colWidths[4] - 6, baseTextY, { align: "right" });
+
+    y += rowH;
+  });
+
+  if (itemsList.length === 0 && docData.total) {
+    subtotal = Number(docData.total) || 0;
+  }
+  const totalPagar = subtotal - totalDcto;
+
+  // --- OBSERVACIONES Y TOTALES ---
+  y += 16;
+  if (y + 64 > pageBottomLimit) {
+    pdf.addPage();
+    y = 40;
+  }
+
+  const totBoxW = 92;
+  const totBoxX = rightX - totBoxW;
+  const totLabelRightX = totBoxX - 8;
+  const totRowH = 18;
+
+  const drawTotalRow = (label, amountStr, rowY, highlighted) => {
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(9.5);
+    pdf.setTextColor(51, 51, 51);
+    pdf.text(label, totLabelRightX, rowY + 12.5, { align: "right" });
+
+    pdf.setDrawColor(115, 147, 167);
+    pdf.setLineWidth(0.6);
+    if (highlighted) {
+      pdf.setFillColor(15, 76, 92);
+      pdf.rect(totBoxX, rowY, totBoxW, totRowH, "FD");
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFont("helvetica", "bold");
+    } else {
+      pdf.setFillColor(255, 255, 255);
+      pdf.rect(totBoxX, rowY, totBoxW, totRowH, "FD");
+      pdf.setTextColor(51, 51, 51);
+      pdf.setFont("helvetica", "normal");
+    }
+    pdf.text(amountStr, rightX - 6, rowY + 12.5, { align: "right" });
+  };
+
+  drawTotalRow("TOTAL", `$ ${Math.round(subtotal).toLocaleString("es-CO")}`, y, true);
+  drawTotalRow("Descuento", `$ ${Math.round(totalDcto).toLocaleString("es-CO")}`, y + totRowH, false);
+  drawTotalRow("TOTAL A PAGAR", `$ ${Math.round(totalPagar).toLocaleString("es-CO")}`, y + totRowH * 2, true);
+
+  // Observaciones a la izquierda
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(9.75);
+  pdf.setTextColor(15, 118, 110);
+  pdf.text("Observaciones", marginX, y + 11);
+
+  const rawObs = pdfSafeStr(docData.observaciones || docData.notes || "").toUpperCase();
+  if (rawObs) {
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(8.25);
+    pdf.setTextColor(85, 85, 85);
+    const obsMaxW = totLabelRightX - marginX - 75;
+    let obsY = y + 24;
+    rawObs.split(/\r?\n/).forEach(paragraph => {
+      if (paragraph.trim() === "") {
+        obsY += 6;
+        return;
+      }
+      const wrapped = pdf.splitTextToSize(paragraph, obsMaxW);
+      wrapped.forEach(ln => {
+        if (obsY > pageBottomLimit) {
+          pdf.addPage();
+          obsY = 44;
+          pdf.setFont("helvetica", "normal");
+          pdf.setFontSize(8.25);
+          pdf.setTextColor(85, 85, 85);
+        }
+        pdf.text(ln, marginX, obsY);
+        obsY += 10.5;
+      });
+    });
+  }
+
+  pdf.save(filename);
+}
+
+let isExportingFactura = false;
+
 document.getElementById("form-facturacion").addEventListener("submit", async function(e) {
   e.preventDefault();
+  if (isExportingFactura) return;
   
   if (facturacionItems.length === 0) {
     showCustomAlert("Debe agregar al menos un ítem al documento.");
@@ -8720,44 +9239,17 @@ document.getElementById("form-facturacion").addEventListener("submit", async fun
   }
 
   const btnExportar = document.getElementById("btn-export-factura");
+  isExportingFactura = true;
   btnExportar.disabled = true;
-  btnExportar.innerHTML = `<i data-lucide="loader" class="spin"></i> Generando PDF...`;
+  btnExportar.innerHTML = `<svg class="spin" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Generando PDF...`;
   
-  await new Promise(r => setTimeout(r, 50)); // Allow UI to update before locking the thread
+  updatePrintTemplate();
   
-  updatePrintTemplate(); // Ensure latest data is pushed
-  
+  const docTypeSaved = currentFacturaType;
   const fecha = document.getElementById("facturacion-fecha").value;
   const nombre = document.getElementById("facturacion-nombre").value.trim().toUpperCase();
+  const filename = `${docTypeSaved}_${consecElement}_${nombre}.pdf`;
   
-  const element = document.getElementById("factura-print-template");
-  
-  // Crear un contenedor temporal fuera de pantalla para evitar recortes de overflow del contenedor padre
-  const tempContainer = document.createElement("div");
-  tempContainer.style.position = "fixed";
-  tempContainer.style.left = "-9999px";
-  tempContainer.style.top = "-9999px";
-  tempContainer.style.width = "816px";
-  tempContainer.style.background = "white";
-  
-  const clone = element.cloneNode(true);
-  clone.style.transform = "none"; // Eliminar transformaciones
-  clone.style.width = "816px";
-  clone.style.height = "1056px";
-  clone.style.padding = "48px";
-  
-  tempContainer.appendChild(clone);
-  document.body.appendChild(tempContainer);
-  
-  const opt = {
-    margin:       0, // Margen cero porque ya está incluido como padding: 48px (0.5 in) en el diseño de la hoja
-    filename:     `${currentFacturaType}_${consecElement}_${nombre}.pdf`,
-    image:        { type: 'jpeg', quality: 0.98 },
-    html2canvas:  { scale: 1.5, useCORS: true, logging: false },
-    jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
-  };
-  
-  // Calcular Total Final
   let totalPagar = 0;
   facturacionItems.forEach(item => {
     totalPagar += item.qty * (item.unitPrice - item.discount);
@@ -8766,7 +9258,7 @@ document.getElementById("form-facturacion").addEventListener("submit", async fun
   const nuevoDoc = {
     id: consecElement,
     date: fecha,
-    docType: currentFacturaType,
+    docType: docTypeSaved,
     client: nombre,
     nit: document.getElementById("facturacion-nit").value.trim().toUpperCase(),
     direccion: document.getElementById("facturacion-direccion").value.trim().toUpperCase(),
@@ -8789,24 +9281,27 @@ document.getElementById("form-facturacion").addEventListener("submit", async fun
   } else {
     State.facturacion.push(nuevoDoc);
   }
-  State.save();
-  
-  updateSummaryWidget();
-  renderDocumentsHistory();
+  State.save(['facturacion']);
+
+  const docsMod = document.getElementById("module-documentos");
+  if (docsMod && !docsMod.classList.contains("hidden")) {
+    renderDocumentsHistory();
+  }
 
   try {
-    await html2pdf().set(opt).from(clone).save();
+    await exportFacturaVectorPDF(nuevoDoc, filename);
+    resetFacturacionForm();
     if (isEditingExisting) {
-      showCustomAlert(`✅ ${currentFacturaType} ${consecElement} actualizada y exportada como PDF con éxito.`);
+      showCustomAlert(`✅ ${docTypeSaved} ${consecElement} actualizada y exportada como PDF con éxito.`);
     } else {
-      showCustomAlert(`✅ ${currentFacturaType} ${consecElement} registrada y exportada como PDF con éxito.`);
+      showCustomAlert(`✅ ${docTypeSaved} ${consecElement} registrada y exportada como PDF con éxito.`);
     }
   } catch (err) {
     console.error(err);
+    resetFacturacionForm();
     showCustomAlert("⚠️ El documento se guardó en el historial, pero ocurrió un error al exportar el PDF. Puede re-exportarlo desde el Historial.");
   } finally {
-    document.body.removeChild(tempContainer);
-    resetFacturacionForm();
+    isExportingFactura = false;
   }
 });
 
