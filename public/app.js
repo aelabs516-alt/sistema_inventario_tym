@@ -4888,7 +4888,7 @@ function openDocumentDetailModal(id, type) {
               <div style="font-size: 11px; line-height: 1.4;">
                 <div>NIT 901.818.992-1</div>
                 <div>CEL: (57) 3247772247</div>
-                <div>Calle 76 # 45A-9 Piso 4</div>
+                <div>Calle 76 # 45A-11 Piso 4</div>
                 <div>Itagüí - Colombia</div>
               </div>
             </div>
@@ -7028,7 +7028,29 @@ function renderPdfTemplate(base64Data, type) {
     }
     
     currentPdfRenderTask = page.render(renderContext);
-    return currentPdfRenderTask.promise.then(() => page);
+    return currentPdfRenderTask.promise.then(() => {
+      // Actualizar dirección del remitente en el lienzo del rótulo (Calle 76 # 45A-11 Piso 4)
+      const addrCoords = {
+        "T&M": { x: 262.9803, y: 156.4074 },
+        "ME": { x: 409.7646, y: 139.1406 },
+        "Energía Solar": { x: 409.7646, y: 120.1406 }
+      }[type] || { x: 262.9803, y: 156.4074 };
+
+      const canvasX = addrCoords.x * scale;
+      const canvasY = viewport.height - (addrCoords.y * scale);
+      const fontPx = 13.7523 * scale;
+
+      ctx.save();
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(canvasX - (2 * scale), canvasY - (11.2 * scale), 182 * scale, 12.8 * scale);
+      ctx.fillStyle = "#565656";
+      ctx.font = `600 ${fontPx}px 'Poppins', 'Century Gothic', 'Segoe UI', Arial, sans-serif`;
+      ctx.textBaseline = "alphabetic";
+      ctx.fillText("Calle 76 # 45A-11 Piso 4", canvasX, canvasY);
+      ctx.restore();
+
+      return page;
+    });
   }).then(page => {
     currentPdfRenderTask = null;
     console.log("Template PDF renderizado correctamente.");
